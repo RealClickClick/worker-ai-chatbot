@@ -7,7 +7,7 @@ getDebateMessages, addDebateMessage, deleteDebateRoundMessages } from '../servic
 import { logger } from '../utils/logger.ts';
 import { PERSONAS } from '../../config/personas.ts';
 import { PERSONA_THINKING_EMOJIS } from '../../config/persona-emojis.ts';
-import { buildStyleKeyboard, buildRoundsKeyboard, buildPersonaCategoryKeyboard, buildPersonaSubKeyboard, buildDebateContinueKeyboard, buildRetryKeyboard, getRoles } from '../menus/debateMenu.ts';
+import { buildStyleKeyboard, buildRoundsKeyboard, buildPersonaCategoryKeyboard, buildPersonaSubKeyboard, buildDebateContinueKeyboard, buildRetryKeyboard, buildJudgeToggleKeyboard, getRoles } from '../menus/debateMenu.ts';
 import type { Env } from '../types/env.d.ts';
 
 function getPersonaEmoji(persona: string): string {
@@ -179,6 +179,36 @@ async function runDebateRound(env: Env, chatId: number | string, sessionId: numb
   }
 
   await updateDebateSession(env, sessionId, { setup_step: 'active' });
+
+  if (session.judge_enabled && !isLastRound) {
+    const judgePersona = session.judge_persona || 'judge';
+    const judgeEmoji = getPersonaEmoji(judgePersona);
+    const judgeSystem = `You are an impartial discussion judge ${judgeEmoji}. Analyze the arguments just presented in Round ${roundNumber}/${totalRounds} of this ${style} on the topic "${topic}". Provide brief, constructive feedback (1-2 paragraphs). Identify the strongest points from each side. Be fair and insightful. Do NOT declare a winner yet — only analyze this round's arguments.`;
+    const roundMsgs = await getDebateMessages(env, sessionId);
+    const recentMsgs = roundMsgs.filter(m => m.round_number === roundNumber);
+    const judgeInput = `${p1}: ${(recentMsgs.find(m => m.persona_name === p1)?.message_text || '').slice(0, 1500)}\n\n${p2}: ${(recentMsgs.find(m => m.persona_name === p2)?.message_text || '').slice(0, 1500)}`;
+    let judgeFeedback = '';
+    try {
+      judgeFeedback = await Promise.race([
+        runChat(env, [
+          { role: 'system', content: judgeSystem },
+          { role: 'user', content: `Round ${roundNumber} arguments:\n\n${judgeInput}` }
+        ], DEBATE_TOKEN_LIMIT, 'fast'),
+        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Judge timed out')), DEBATE_AI_TIMEOUT)),
+      ]);
+    } catch (e: any) {
+      logger.error('Debate judge round error', { sessionId, round: roundNumber, error: e.message });
+    }
+    if (judgeFeedback) {
+      const cleanJudge = cleanAIResponseText(judgeFeedback) || '';
+      roundText += `\n━━━ ⚖️ *${judgePersona}* (Judge) ━━━\n${cleanJudge}\n`;
+      if (debateMsg) {
+        await editMessage(chatId, debateMsg, roundText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
+      }
+      await addDebateMessage(env, sessionId, roundNumber, judgePersona, cleanJudge);
+    }
+  }
+
   if (isLastRound) {
     await finishDebate(env, chatId, sessionId, lang, debateMsg);
   } else {
@@ -213,11 +243,37 @@ async function finishDebate(env: Env, chatId: number | string, sessionId: number
   }
 
   const cleanSummary = cleanAIResponseText(summary) || 'Debate concluded.';
-  const summaryText = `━━━━━━━━━━━━━━━━\n📋 *Debate Summary*\n━━━━━━━━━━━━━━━━\n\n${cleanSummary}`;
+  let finalText = `━━━━━━━━━━━━━━━━\n📋 *Debate Summary*\n━━━━━━━━━━━━━━━━\n\n${cleanSummary}`;
+
+  if (session.judge_enabled) {
+    const judgePersona = session.judge_persona || 'judge';
+    const judgeEmoji = getPersonaEmoji(judgePersona);
+    const fullHistory = messages.map(m =>
+      `${m.persona_name}: ${(m.message_text || '').slice(0, 300)}`
+    ).join('\n');
+    const verdictPrompt = [
+      { role: 'system', content: `${judgeEmoji} You are the final judge of a ${session.style} discussion. Score each participant out of 10, declare a winner, and explain your reasoning concisely (2-3 paragraphs). Be specific about what each participant did well and where they fell short.` },
+      { role: 'user', content: `Topic: ${session.topic}\nStyle: ${session.style}\n\nFull discussion:\n${fullHistory}\n\nProvide your final verdict with scores.` }
+    ];
+    let verdict = '';
+    try {
+      verdict = await Promise.race([
+        runChat(env, verdictPrompt, DEBATE_TOKEN_LIMIT, 'fast'),
+        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Verdict timed out')), DEBATE_AI_TIMEOUT)),
+      ]);
+    } catch (e: any) {
+      logger.error('Debate verdict error', { sessionId, error: (e as any).message });
+    }
+    const cleanVerdict = cleanAIResponseText(verdict) || '';
+    if (cleanVerdict) {
+      finalText += `\n\n━━━━━━━━━━━━━━━━\n⚖️ *${judgePersona}'s Verdict*\n━━━━━━━━━━━━━━━━\n\n${cleanVerdict}`;
+    }
+  }
+
   if (debateMsg) {
-    await editMessage(chatId, debateMsg, summaryText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown');
+    await editMessage(chatId, debateMsg, finalText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown');
   } else {
-    await sendMessage(chatId, summaryText, env, 'Markdown');
+    await sendMessage(chatId, finalText, env, 'Markdown');
   }
 }
 
@@ -265,11 +321,12 @@ export async function handleDebateCallback(data: string, chatId: number | string
 
   if (data.startsWith('debate_cat_')) {
     const rest = data.replace('debate_cat_', '');
-    const step = rest.startsWith('p1_') ? 'p1' : 'p2';
-    const category = rest.replace(/^(p1_|p2_)/, '');
+    const step = rest.startsWith('p1_') ? 'p1' : rest.startsWith('judge_') ? 'judge' : 'p2';
+    const category = rest.replace(/^(p1_|p2_|judge_)/, '');
     const keyboard = buildPersonaSubKeyboard(lang, category, step);
     if (!keyboard) return false;
-    await editMessage(chatId, messageId, t(lang, step === 'p1' ? 'debate_p1_prompt' : 'debate_p2_prompt'), env, 'Markdown', keyboard);
+    const prompts: Record<string, string> = { p1: 'debate_p1_prompt', p2: 'debate_p2_prompt', judge: 'debate_judge_select' };
+    await editMessage(chatId, messageId, t(lang, prompts[step] || 'debate_p2_prompt'), env, 'Markdown', keyboard);
     return true;
   }
 
@@ -304,20 +361,41 @@ export async function handleDebateCallback(data: string, chatId: number | string
   const roundsMatch = data.match(/^debate_rounds_(\d+)$/);
   if (roundsMatch) {
     const roundVal = Math.min(MAX_DEBATE_ROUNDS, Math.max(MIN_DEBATE_ROUNDS, parseInt(roundsMatch[1], 10)));
-    await updateDebateSession(env, session.id, { max_rounds: roundVal });
+    await updateDebateSession(env, session.id, { max_rounds: roundVal, setup_step: 'judge_ask' });
+    await editMessage(chatId, messageId, t(lang, 'debate_judge_ask'), env, 'Markdown', buildJudgeToggleKeyboard(lang));
+    return true;
+  }
 
-    const updated = await getDebateSession(env, session.id);
-    const hasTopic = updated?.topic;
-    if (hasTopic) {
-      await updateDebateSession(env, session.id, { setup_step: 'ready' });
-      await editMessage(chatId, messageId, `🎭 ${t(lang, 'debate_intro')}`, env);
-      await initDebate(env, chatId, session.id, lang);
-    } else {
-      await updateDebateSession(env, session.id, { setup_step: 'topic' });
-      await editMessage(chatId, messageId, t(lang, 'debate_topic_prompt'), env, 'Markdown');
-    }
+  if (data === 'debate_judge_yes') {
+    await updateDebateSession(env, session.id, { setup_step: 'judge' });
+    await editMessage(chatId, messageId, t(lang, 'debate_judge_select'), env, 'Markdown', buildPersonaCategoryKeyboard(lang, 'judge'));
+    return true;
+  }
+
+  if (data === 'debate_judge_no') {
+    await proceedFromJudge(env, chatId, messageId, session, lang);
+    return true;
+  }
+
+  const judgeSelMatch = data.match(/^debate_judge_(.+)$/);
+  if (judgeSelMatch) {
+    const persona = judgeSelMatch[1];
+    await updateDebateSession(env, session.id, { judge_enabled: 1, judge_persona: persona });
+    await proceedFromJudge(env, chatId, messageId, session, lang);
     return true;
   }
 
   return false;
+}
+
+async function proceedFromJudge(env: Env, chatId: number | string, messageId: number, session: any, lang: string): Promise<void> {
+  const updated = await getDebateSession(env, session.id);
+  if (updated?.topic) {
+    await updateDebateSession(env, session.id, { setup_step: 'ready' });
+    await editMessage(chatId, messageId, `🎭 ${t(lang, 'debate_intro')}`, env);
+    await initDebate(env, chatId, session.id, lang);
+  } else {
+    await updateDebateSession(env, session.id, { setup_step: 'topic' });
+    await editMessage(chatId, messageId, t(lang, 'debate_topic_prompt'), env, 'Markdown');
+  }
 }

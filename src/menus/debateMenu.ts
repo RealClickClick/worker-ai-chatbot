@@ -102,3 +102,14 @@ export function buildRetryKeyboard(lang: string, personaIndex: number, round: nu
     ],
   };
 }
+
+export function buildJudgeToggleKeyboard(lang: string): any {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, 'debate_judge_yes'), callback_data: 'debate_judge_yes' },
+        { text: t(lang, 'debate_judge_no'), callback_data: 'debate_judge_no' },
+      ],
+    ],
+  };
+}

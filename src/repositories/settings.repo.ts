@@ -270,6 +270,14 @@ const MIGRATIONS = [
       `CREATE INDEX IF NOT EXISTS idx_memory_summaries_lookup ON memory_summaries(chat_id, session_id, created_at)`,
     ],
   },
+  {
+    version: 16,
+    description: 'Add judge_enabled and judge_persona columns to debate_sessions',
+    statements: [
+      `ALTER TABLE debate_sessions ADD COLUMN judge_enabled INTEGER DEFAULT 0`,
+      `ALTER TABLE debate_sessions ADD COLUMN judge_persona TEXT`,
+    ],
+  },
 ];
 
 export async function initDB(env: Env): Promise<void> {

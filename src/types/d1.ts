@@ -98,6 +98,8 @@ export interface DebateSessionRow {
   setup_step: string | null;
   persona_1: string | null;
   persona_2: string | null;
+  judge_enabled: number;
+  judge_persona: string | null;
   created_at: string;
 }
 
