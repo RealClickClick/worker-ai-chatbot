@@ -144,31 +144,41 @@ async function runDebateRound(env: Env, chatId: number | string, sessionId: numb
     }
 
     let accumulated = '';
+    let aiError: string | null = null;
     try {
       let lastEditTime = 0;
       const STREAM_INTERVAL = 300;
-      for await (const chunk of runChatStreaming(env, chatMessages, TOKEN_LIMIT_MEDIUM, 'fast')) {
-        accumulated += chunk;
-        if (debateMsg) {
-          const display = roundText + accumulated;
-          if (Date.now() - lastEditTime >= STREAM_INTERVAL) {
-            lastEditTime = Date.now();
-            await editMessage(chatId, debateMsg, display.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
+
+      await Promise.race([
+        (async () => {
+          for await (const chunk of runChatStreaming(env, chatMessages, TOKEN_LIMIT_MEDIUM, 'fast')) {
+            accumulated += chunk;
+            if (debateMsg) {
+              const display = roundText + accumulated;
+              if (Date.now() - lastEditTime >= STREAM_INTERVAL) {
+                lastEditTime = Date.now();
+                await editMessage(chatId, debateMsg, display.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
+              }
+            }
           }
-        }
-      }
+          return true;
+        })(),
+        new Promise<false>((_, reject) => setTimeout(() => reject(new Error('AI response timed out')), 25000)),
+      ]);
+
       if (debateMsg && accumulated) {
         await editMessage(chatId, debateMsg, (roundText + accumulated).slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
       }
-      if (!accumulated) {
-        accumulated = await runChat(env, chatMessages, TOKEN_LIMIT_MEDIUM, 'fast');
-      }
     } catch (e: any) {
-      logger.error('Debate streaming error', { sessionId, persona, error: (e as any).message });
+      aiError = e.message;
+      logger.error('Debate streaming error', { sessionId, persona, error: aiError });
+    }
+
+    if (!accumulated) {
       try {
         accumulated = await runChat(env, chatMessages, TOKEN_LIMIT_MEDIUM, 'fast');
       } catch (e2: any) {
-        accumulated = '*[Could not generate response]*';
+        accumulated = aiError ? `*[${aiError}]*` : '*[Could not generate response]*';
       }
     }
 
@@ -209,19 +219,10 @@ async function finishDebate(env: Env, chatId: number | string, sessionId: number
 
   let summary = '';
   try {
-    for await (const chunk of runChatStreaming(env, summaryPrompt, TOKEN_LIMIT_MEDIUM, 'fast')) {
-      summary += chunk;
-    }
-    if (!summary) {
-      summary = await runChat(env, summaryPrompt, TOKEN_LIMIT_MEDIUM, 'fast');
-    }
+    summary = await runChat(env, summaryPrompt, TOKEN_LIMIT_MEDIUM, 'fast');
   } catch (e: any) {
     logger.error('Debate summary error', { sessionId, error: (e as any).message });
-    try {
-      summary = await runChat(env, summaryPrompt, TOKEN_LIMIT_MEDIUM, 'fast');
-    } catch (e2: any) {
-      summary = 'Debate concluded.';
-    }
+    summary = 'Debate concluded.';
   }
 
   const cleanSummary = cleanAIResponseText(summary) || 'Debate concluded.';
