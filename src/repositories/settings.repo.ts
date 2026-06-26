@@ -278,6 +278,42 @@ const MIGRATIONS = [
       `ALTER TABLE debate_sessions ADD COLUMN judge_persona TEXT`,
     ],
   },
+  {
+    version: 17,
+    description: 'Add participant_persona column to debate_sessions for user participation',
+    statements: [
+      `ALTER TABLE debate_sessions ADD COLUMN participant_persona TEXT`,
+    ],
+  },
+  {
+    version: 18,
+    description: 'Add waiting_since column to debate_sessions for user timeout tracking',
+    statements: [
+      `ALTER TABLE debate_sessions ADD COLUMN waiting_since TEXT`,
+    ],
+  },
+  {
+    version: 19,
+    description: 'Create debate_templates table for saving favorite debate setups',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS debate_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        persona_1 TEXT NOT NULL,
+        persona_2 TEXT NOT NULL,
+        style TEXT DEFAULT 'debate',
+        created_at TEXT DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    version: 20,
+    description: 'Add roles_swapped column to debate_sessions for asymmetric style roles',
+    statements: [
+      `ALTER TABLE debate_sessions ADD COLUMN roles_swapped INTEGER DEFAULT 0`,
+    ],
+  },
 ];
 
 export async function initDB(env: Env): Promise<void> {

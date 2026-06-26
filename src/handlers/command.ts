@@ -19,7 +19,7 @@ import { validateImagePrompt, validateSearchQuery, validateInstructions, validat
 import { handleAdmin } from './admin.ts';
 import { handleSession } from './session.ts';
 import { handleNewPersona } from './persona.ts';
-import { handleDebateCommand } from './debate.ts';
+import { handleDebateCommand, handleDebateHistory, handleDebateSaveTemplate, handleDebateListTemplates, handleDebateExport } from './debate.ts';
 import { handleDailyCommand } from './daily.ts';
 import { handleRemindCommand, handleRemindersList, handleCancelCommand, handleReminderMessage } from './reminder.ts';
 import type { Env } from '../types/env.d.ts';
@@ -165,6 +165,18 @@ export async function handleCommand(chatId: number | string, commandText: string
 
     case '/debate':
       return await handleDebateCommand(chatId, args, env, lang, userName);
+
+    case '/debate_history':
+      return await handleDebateHistory(chatId, env, lang);
+
+    case '/debate_save':
+      return await handleDebateSaveTemplate(chatId, args, env, lang);
+
+    case '/debate_templates':
+      return await handleDebateListTemplates(chatId, env, lang);
+
+    case '/debate_export':
+      return await handleDebateExport(chatId, env, lang);
 
     case '/learn':
       return await handleLearn(chatId, args, env, lang);

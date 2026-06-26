@@ -7,6 +7,10 @@ const STYLE_KEYS: Record<string, string> = {
   panel: 'debate_style_panel',
   collaboration: 'debate_style_collaboration',
   interview: 'debate_style_interview',
+  brainstorm: 'debate_style_brainstorm',
+  negotiation: 'debate_style_negotiation',
+  cross_examine: 'debate_style_cross_examine',
+  storytelling: 'debate_style_storytelling',
 };
 
 export function buildStyleKeyboard(lang: string): any {
@@ -71,7 +75,11 @@ const STYLE_ROLE_MAP: Record<string, string> = {
   debate: 'Debater',
   panel: 'Panelist',
   collaboration: 'Collaborator',
-  interview: 'Interviewee' as string,
+  interview: 'Interviewee',
+  brainstorm: 'Brainstormer',
+  negotiation: 'Negotiator',
+  cross_examine: 'Examiner',
+  storytelling: 'Storyteller',
 };
 
 const STYLE_ROLE_MAP_2: Record<string, string> = {
@@ -79,10 +87,33 @@ const STYLE_ROLE_MAP_2: Record<string, string> = {
   panel: 'Panelist',
   collaboration: 'Collaborator',
   interview: 'Interviewer',
+  brainstorm: 'Brainstormer',
+  negotiation: 'Negotiator',
+  cross_examine: 'Witness',
+  storytelling: 'Storyteller',
 };
 
-export function getRoles(style: string): [string, string] {
+const ASYMMETRIC_STYLES = ['cross_examine', 'interview'];
+
+export function isAsymmetricStyle(style: string): boolean {
+  return ASYMMETRIC_STYLES.includes(style);
+}
+
+export function getRoles(style: string, swapped = false): [string, string] {
+  if (swapped) {
+    return [STYLE_ROLE_MAP_2[style] || 'Speaker', STYLE_ROLE_MAP[style] || 'Speaker'];
+  }
   return [STYLE_ROLE_MAP[style] || 'Speaker', STYLE_ROLE_MAP_2[style] || 'Speaker'];
+}
+
+export function buildRoleSwapKeyboard(lang: string, p1: string, p2: string, style?: string): any {
+  const s = style || 'cross_examine';
+  return {
+    inline_keyboard: [
+      [{ text: `🎭 ${p1}: ${STYLE_ROLE_MAP[s]} / ${p2}: ${STYLE_ROLE_MAP_2[s]}`, callback_data: 'debate_roles_default' }],
+      [{ text: `🔄 ${p2}: ${STYLE_ROLE_MAP[s]} / ${p1}: ${STYLE_ROLE_MAP_2[s]}`, callback_data: 'debate_roles_swapped' }],
+    ],
+  };
 }
 
 export function buildDebateContinueKeyboard(lang: string, hasMoreRounds: boolean): any {
@@ -110,6 +141,26 @@ export function buildJudgeToggleKeyboard(lang: string): any {
         { text: t(lang, 'debate_judge_yes'), callback_data: 'debate_judge_yes' },
         { text: t(lang, 'debate_judge_no'), callback_data: 'debate_judge_no' },
       ],
+    ],
+  };
+}
+
+export function buildParticipateKeyboard(lang: string): any {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, 'debate_participate_yes'), callback_data: 'debate_participate_yes' },
+        { text: t(lang, 'debate_participate_no'), callback_data: 'debate_participate_no' },
+      ],
+    ],
+  };
+}
+
+export function buildPickSideKeyboard(lang: string, p1: string, p2: string): any {
+  return {
+    inline_keyboard: [
+      [{ text: `🎭 ${p1}`, callback_data: 'debate_pick_1' }],
+      [{ text: `🎭 ${p2}`, callback_data: 'debate_pick_2' }],
     ],
   };
 }

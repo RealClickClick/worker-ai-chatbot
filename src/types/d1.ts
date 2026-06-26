@@ -85,6 +85,16 @@ export interface CountRow {
   cnt: number;
 }
 
+export interface DebateTemplateRow {
+  id: number;
+  chat_id: string;
+  name: string;
+  persona_1: string;
+  persona_2: string;
+  style: string;
+  created_at: string;
+}
+
 export interface DebateSessionRow {
   id: number;
   chat_id: number | string;
@@ -100,6 +110,9 @@ export interface DebateSessionRow {
   persona_2: string | null;
   judge_enabled: number;
   judge_persona: string | null;
+  participant_persona: string | null;
+  roles_swapped: number;
+  waiting_since: string | null;
   created_at: string;
 }
 
