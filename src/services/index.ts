@@ -25,7 +25,7 @@ export { analyzeFeedback, getAdaptationContext } from './persona-adaptive.servic
 
 export {
   createDebateSession, updateDebateSession, getActiveDebateSession,
-  addDebateMessage, getDebateMessages, getDebateSession,
+  addDebateMessage, getDebateMessages, getDebateSession, deleteDebateRoundMessages,
 } from '../repositories/debate.repo.ts';
 
 export {

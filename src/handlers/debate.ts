@@ -1,13 +1,13 @@
 import { sendMessage, sendMessageWithId, editMessage } from '../telegram.ts';
 import { t } from '../locales.ts';
 import { runChat, cleanAIResponseText } from '../ai.ts';
-import { MAX_MESSAGE_LENGTH, TOKEN_LIMIT_MEDIUM } from '../constants.ts';
+import { MAX_MESSAGE_LENGTH, TOKEN_LIMIT_MEDIUM, DEBATE_TOKEN_LIMIT, DEBATE_AI_TIMEOUT, DEBATE_HISTORY_TRUNCATE, MIN_DEBATE_ROUNDS, MAX_DEBATE_ROUNDS } from '../constants.ts';
 import { getActiveDebateSession, createDebateSession, updateDebateSession, getDebateSession, 
-getDebateMessages, addDebateMessage } from '../services/index.ts';
+getDebateMessages, addDebateMessage, deleteDebateRoundMessages } from '../services/index.ts';
 import { logger } from '../utils/logger.ts';
 import { PERSONAS } from '../../config/personas.ts';
 import { PERSONA_THINKING_EMOJIS } from '../../config/persona-emojis.ts';
-import { buildStyleKeyboard, buildRoundsKeyboard, buildPersonaCategoryKeyboard, buildPersonaSubKeyboard, buildDebateContinueKeyboard, getRoles } from '../menus/debateMenu.ts';
+import { buildStyleKeyboard, buildRoundsKeyboard, buildPersonaCategoryKeyboard, buildPersonaSubKeyboard, buildDebateContinueKeyboard, buildRetryKeyboard, getRoles } from '../menus/debateMenu.ts';
 import type { Env } from '../types/env.d.ts';
 
 function getPersonaEmoji(persona: string): string {
@@ -33,7 +33,7 @@ function formatDebateHistory(persona1: string, persona2: string, messages: any[]
       lines.push(`\n${speakerEmoji} **${speaker}:**`);
       lastSpeaker = speaker;
     }
-    lines.push(msg.message_text.slice(0, 500));
+    lines.push(msg.message_text.slice(0, DEBATE_HISTORY_TRUNCATE));
   }
   return { text: lines.join('\n'), isEmpty: false };
 }
@@ -143,18 +143,20 @@ async function runDebateRound(env: Env, chatId: number | string, sessionId: numb
     }
 
     let accumulated = '';
+    let personaFailed = false;
     try {
-      const AI_TIMEOUT = 40000;
       accumulated = await Promise.race([
-        runChat(env, chatMessages, 800, 'fast'),
-        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('AI did not respond')), AI_TIMEOUT)),
+        runChat(env, chatMessages, DEBATE_TOKEN_LIMIT, 'fast'),
+        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('AI did not respond')), DEBATE_AI_TIMEOUT)),
       ]);
     } catch (e: any) {
+      personaFailed = true;
       logger.error('Debate AI error', { sessionId, persona, error: (e as any).message });
     }
 
     if (!accumulated) {
       accumulated = '*[No response from AI]*';
+      personaFailed = true;
     }
 
     let cleanText = cleanAIResponseText(accumulated) || '';
@@ -165,8 +167,18 @@ async function runDebateRound(env: Env, chatId: number | string, sessionId: numb
       await editMessage(chatId, debateMsg, roundText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
     }
     await addDebateMessage(env, sessionId, roundNumber, persona, cleanText);
+
+    if (personaFailed) {
+      await updateDebateSession(env, sessionId, { setup_step: 'retry' });
+      if (debateMsg) {
+        const idx = p1 === persona ? 0 : 1;
+        await editMessage(chatId, debateMsg, roundText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown', buildRetryKeyboard(lang, idx, roundNumber));
+      }
+      return;
+    }
   }
 
+  await updateDebateSession(env, sessionId, { setup_step: 'active' });
   if (isLastRound) {
     await finishDebate(env, chatId, sessionId, lang, debateMsg);
   } else {
@@ -211,7 +223,18 @@ async function finishDebate(env: Env, chatId: number | string, sessionId: number
 
 export async function handleDebateCallback(data: string, chatId: number | string, messageId: number, env: Env, lang: string): Promise<boolean> {
   const session = await getActiveDebateSession(env, chatId);
-  if (!session && data !== 'debate_next' && data !== 'debate_end' && data !== 'debate_cancel') return false;
+  if (!session && data !== 'debate_next' && data !== 'debate_end' && data !== 'debate_cancel' && !data.startsWith('debate_retry_')) return false;
+
+  const retryMatch = data.match(/^debate_retry_(\d+)_(\d+)$/);
+  if (retryMatch) {
+    if (!session) return false;
+    const retryRound = parseInt(retryMatch[1], 10);
+    if (retryRound !== (session.current_round || 0)) return false;
+    await editMessage(chatId, messageId, '🔄 Retrying...', env);
+    await deleteDebateRoundMessages(env, session.id, retryRound);
+    await runDebateRound(env, chatId, session.id, retryRound, lang);
+    return true;
+  }
 
   if (data === 'debate_cancel') {
     if (session) {
@@ -280,10 +303,12 @@ export async function handleDebateCallback(data: string, chatId: number | string
 
   const roundsMatch = data.match(/^debate_rounds_(\d+)$/);
   if (roundsMatch) {
-    const maxRounds = parseInt(roundsMatch[1], 10);
-    await updateDebateSession(env, session.id, { max_rounds: maxRounds });
+    const roundVal = Math.min(MAX_DEBATE_ROUNDS, Math.max(MIN_DEBATE_ROUNDS, parseInt(roundsMatch[1], 10)));
+    await updateDebateSession(env, session.id, { max_rounds: roundVal });
 
-    if (session.topic) {
+    const updated = await getDebateSession(env, session.id);
+    const hasTopic = updated?.topic;
+    if (hasTopic) {
       await updateDebateSession(env, session.id, { setup_step: 'ready' });
       await editMessage(chatId, messageId, `🎭 ${t(lang, 'debate_intro')}`, env);
       await initDebate(env, chatId, session.id, lang);

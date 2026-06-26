@@ -28,7 +28,7 @@ export {
 
 export {
   createDebateSession, updateDebateSession, getActiveDebateSession,
-  addDebateMessage, getDebateMessages, getDebateSession,
+  addDebateMessage, getDebateMessages, getDebateSession, deleteDebateRoundMessages,
 } from './repositories/debate.repo.ts';
 
 export {

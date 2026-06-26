@@ -46,3 +46,10 @@ export async function getDebateSession(env: Env, sessionId: number): Promise<Deb
   const row = await env.DB.prepare('SELECT * FROM debate_sessions WHERE id = ?').bind(sessionId).first<DebateSessionRow | null>();
   return row || null;
 }
+
+export async function deleteDebateRoundMessages(env: Env, sessionId: number, roundNumber: number): Promise<void> {
+  if (!env.DB) return;
+  await env.DB.prepare(
+    'DELETE FROM debate_messages WHERE session_id = ? AND round_number = ?'
+  ).bind(sessionId, roundNumber).run();
+}

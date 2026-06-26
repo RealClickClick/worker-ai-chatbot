@@ -93,3 +93,12 @@ export function buildDebateContinueKeyboard(lang: string, hasMoreRounds: boolean
   rows.push([{ text: t(lang, 'debate_end'), callback_data: 'debate_end' }]);
   return { inline_keyboard: rows };
 }
+
+export function buildRetryKeyboard(lang: string, personaIndex: number, round: number): any {
+  return {
+    inline_keyboard: [
+      [{ text: '🔄 Retry', callback_data: `debate_retry_${round}_${personaIndex}` }],
+      [{ text: t(lang, 'debate_end'), callback_data: 'debate_end' }],
+    ],
+  };
+}
