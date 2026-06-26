@@ -1,0 +1,40 @@
+{
+  "name": "ai-telegram-bot",
+  "version": "2.1.0",
+  "description": "A feature-rich Telegram AI bot powered by Cloudflare Workers AI — supports 24 personas, image generation, file reading, web browsing, and bilingual English/Persian interface.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "publish": "wrangler publish",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/worker.bundle.js --format=esm --target=es2022 --minify",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "lint": "eslint tests/ && tsc --noEmit",
+    "lint:fix": "eslint tests/ --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.ts\" \"config/**/*.ts\" \"tests/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"config/**/*.ts\" \"tests/**/*.js\""
+  },
+  "keywords": [
+    "telegram-bot",
+    "cloudflare-workers",
+    "ai",
+    "chatbot",
+    "persian",
+    "bilingual"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260625.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.0.1",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "globals": "^17.7.0",
+    "prettier": "^3.8.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

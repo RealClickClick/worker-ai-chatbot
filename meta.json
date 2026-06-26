@@ -1,0 +1,913 @@
+{
+  "inputs": {
+    "src/constants.ts": {
+      "bytes": 2140,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/utils/logger.ts": {
+      "bytes": 1091,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/telegram.ts": {
+      "bytes": 15629,
+      "imports": [
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "./utils/logger.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/locales.ts": {
+      "bytes": 108142,
+      "imports": [],
+      "format": "esm"
+    },
+    "config/personas.ts": {
+      "bytes": 191832,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/db.ts": {
+      "bytes": 43643,
+      "imports": [
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "./utils/logger.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/utils/error.ts": {
+      "bytes": 2667,
+      "imports": [
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "./logger.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/utils/cache.ts": {
+      "bytes": 2687,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/ai.ts": {
+      "bytes": 21147,
+      "imports": [
+        {
+          "path": "config/personas.ts",
+          "kind": "import-statement",
+          "original": "../config/personas.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "./locales.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants.ts"
+        },
+        {
+          "path": "src/utils/error.ts",
+          "kind": "import-statement",
+          "original": "./utils/error.ts"
+        },
+        {
+          "path": "src/utils/cache.ts",
+          "kind": "import-statement",
+          "original": "./utils/cache.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "./utils/logger.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/menus/modeMenu.ts": {
+      "bytes": 13392,
+      "imports": [
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "config/personas.ts",
+          "kind": "import-statement",
+          "original": "../../config/personas.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "../ai.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/utils/validate.ts": {
+      "bytes": 1774,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/handlers/admin.ts": {
+      "bytes": 3878,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/session.ts": {
+      "bytes": 1697,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/utils/validate.ts",
+          "kind": "import-statement",
+          "original": "../utils/validate.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/persona.ts": {
+      "bytes": 1779,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/utils/validate.ts",
+          "kind": "import-statement",
+          "original": "../utils/validate.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "config/persona-emojis.ts": {
+      "bytes": 3385,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/menus/debateMenu.ts": {
+      "bytes": 3330,
+      "imports": [
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "config/personas.ts",
+          "kind": "import-statement",
+          "original": "../../config/personas.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/debate.ts": {
+      "bytes": 14347,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "../ai.ts"
+        },
+        {
+          "path": "../parsers/htmlParser.ts",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "../utils/logger.ts"
+        },
+        {
+          "path": "config/personas.ts",
+          "kind": "import-statement",
+          "original": "../../config/personas.ts"
+        },
+        {
+          "path": "config/persona-emojis.ts",
+          "kind": "import-statement",
+          "original": "../../config/persona-emojis.ts"
+        },
+        {
+          "path": "src/menus/debateMenu.ts",
+          "kind": "import-statement",
+          "original": "../menus/debateMenu.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/utils/occasions.ts": {
+      "bytes": 35259,
+      "imports": [
+        {
+          "path": "./logger.ts",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/daily.ts": {
+      "bytes": 2801,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "../ai.ts"
+        },
+        {
+          "path": "src/utils/occasions.ts",
+          "kind": "import-statement",
+          "original": "../utils/occasions.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "../utils/logger.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/menus/reminderMenu.ts": {
+      "bytes": 9901,
+      "imports": [
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/reminder.ts": {
+      "bytes": 17253,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/menus/reminderMenu.ts",
+          "kind": "import-statement",
+          "original": "../menus/reminderMenu.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "../utils/logger.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/command.ts": {
+      "bytes": 18304,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/menus/modeMenu.ts",
+          "kind": "import-statement",
+          "original": "../menus/modeMenu.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "../ai.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "../utils/logger.ts"
+        },
+        {
+          "path": "src/utils/error.ts",
+          "kind": "import-statement",
+          "original": "../utils/error.ts"
+        },
+        {
+          "path": "src/utils/validate.ts",
+          "kind": "import-statement",
+          "original": "../utils/validate.ts"
+        },
+        {
+          "path": "src/handlers/admin.ts",
+          "kind": "import-statement",
+          "original": "./admin.ts"
+        },
+        {
+          "path": "src/handlers/session.ts",
+          "kind": "import-statement",
+          "original": "./session.ts"
+        },
+        {
+          "path": "src/handlers/persona.ts",
+          "kind": "import-statement",
+          "original": "./persona.ts"
+        },
+        {
+          "path": "src/handlers/debate.ts",
+          "kind": "import-statement",
+          "original": "./debate.ts"
+        },
+        {
+          "path": "src/handlers/daily.ts",
+          "kind": "import-statement",
+          "original": "./daily.ts"
+        },
+        {
+          "path": "src/handlers/reminder.ts",
+          "kind": "import-statement",
+          "original": "./reminder.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/parsers/htmlParser.ts": {
+      "bytes": 1624,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/handlers/callback.ts": {
+      "bytes": 13765,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/handlers/debate.ts",
+          "kind": "import-statement",
+          "original": "./debate.ts"
+        },
+        {
+          "path": "src/handlers/daily.ts",
+          "kind": "import-statement",
+          "original": "./daily.ts"
+        },
+        {
+          "path": "src/handlers/reminder.ts",
+          "kind": "import-statement",
+          "original": "./reminder.ts"
+        },
+        {
+          "path": "src/menus/modeMenu.ts",
+          "kind": "import-statement",
+          "original": "../menus/modeMenu.ts"
+        },
+        {
+          "path": "src/handlers/command.ts",
+          "kind": "import-statement",
+          "original": "./command.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/parsers/htmlParser.ts",
+          "kind": "import-statement",
+          "original": "../parsers/htmlParser.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "../ai.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "../utils/logger.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/inline.ts": {
+      "bytes": 2752,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "../ai.ts"
+        },
+        {
+          "path": "src/parsers/htmlParser.ts",
+          "kind": "import-statement",
+          "original": "../parsers/htmlParser.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/utils/cache.ts",
+          "kind": "import-statement",
+          "original": "../utils/cache.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "../utils/logger.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/group-context.ts": {
+      "bytes": 7762,
+      "imports": [
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "./db.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "./constants.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/utils/file.ts": {
+      "bytes": 4928,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "./logger.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/utils/media.ts": {
+      "bytes": 7121,
+      "imports": [
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/utils/file.ts",
+          "kind": "import-statement",
+          "original": "./file.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "../ai.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "./logger.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/handlers/message.ts": {
+      "bytes": 16279,
+      "imports": [
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "../telegram.ts"
+        },
+        {
+          "path": "src/handlers/command.ts",
+          "kind": "import-statement",
+          "original": "./command.ts"
+        },
+        {
+          "path": "src/handlers/callback.ts",
+          "kind": "import-statement",
+          "original": "./callback.ts"
+        },
+        {
+          "path": "src/handlers/reminder.ts",
+          "kind": "import-statement",
+          "original": "./reminder.ts"
+        },
+        {
+          "path": "src/handlers/inline.ts",
+          "kind": "import-statement",
+          "original": "./inline.ts"
+        },
+        {
+          "path": "src/locales.ts",
+          "kind": "import-statement",
+          "original": "../locales.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "../ai.ts"
+        },
+        {
+          "path": "src/parsers/htmlParser.ts",
+          "kind": "import-statement",
+          "original": "../parsers/htmlParser.ts"
+        },
+        {
+          "path": "src/constants.ts",
+          "kind": "import-statement",
+          "original": "../constants.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "../db.ts"
+        },
+        {
+          "path": "src/group-context.ts",
+          "kind": "import-statement",
+          "original": "../group-context.ts"
+        },
+        {
+          "path": "config/persona-emojis.ts",
+          "kind": "import-statement",
+          "original": "../../config/persona-emojis.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "../utils/logger.ts"
+        },
+        {
+          "path": "src/utils/cache.ts",
+          "kind": "import-statement",
+          "original": "../utils/cache.ts"
+        },
+        {
+          "path": "src/utils/media.ts",
+          "kind": "import-statement",
+          "original": "../utils/media.ts"
+        },
+        {
+          "path": "src/handlers/debate.ts",
+          "kind": "import-statement",
+          "original": "./debate.ts"
+        },
+        {
+          "path": "src/utils/error.ts",
+          "kind": "import-statement",
+          "original": "../utils/error.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/index.ts": {
+      "bytes": 8376,
+      "imports": [
+        {
+          "path": "src/handlers/message.ts",
+          "kind": "import-statement",
+          "original": "./handlers/message.ts"
+        },
+        {
+          "path": "src/telegram.ts",
+          "kind": "import-statement",
+          "original": "./telegram.ts"
+        },
+        {
+          "path": "src/db.ts",
+          "kind": "import-statement",
+          "original": "./db.ts"
+        },
+        {
+          "path": "src/ai.ts",
+          "kind": "import-statement",
+          "original": "./ai.ts"
+        },
+        {
+          "path": "src/handlers/daily.ts",
+          "kind": "import-statement",
+          "original": "./handlers/daily.ts"
+        },
+        {
+          "path": "src/handlers/reminder.ts",
+          "kind": "import-statement",
+          "original": "./handlers/reminder.ts"
+        },
+        {
+          "path": "src/utils/logger.ts",
+          "kind": "import-statement",
+          "original": "./utils/logger.ts"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "dist/index.js": {
+      "imports": [],
+      "exports": [
+        "default"
+      ],
+      "entryPoint": "src/index.ts",
+      "inputs": {
+        "src/constants.ts": {
+          "bytesInOutput": 1637
+        },
+        "src/utils/logger.ts": {
+          "bytesInOutput": 892
+        },
+        "src/telegram.ts": {
+          "bytesInOutput": 16769
+        },
+        "src/locales.ts": {
+          "bytesInOutput": 174126
+        },
+        "config/personas.ts": {
+          "bytesInOutput": 187070
+        },
+        "src/db.ts": {
+          "bytesInOutput": 35863
+        },
+        "src/utils/error.ts": {
+          "bytesInOutput": 1530
+        },
+        "src/utils/cache.ts": {
+          "bytesInOutput": 2311
+        },
+        "src/ai.ts": {
+          "bytesInOutput": 22902
+        },
+        "src/menus/modeMenu.ts": {
+          "bytesInOutput": 11650
+        },
+        "src/utils/validate.ts": {
+          "bytesInOutput": 1410
+        },
+        "src/handlers/admin.ts": {
+          "bytesInOutput": 3462
+        },
+        "src/handlers/session.ts": {
+          "bytesInOutput": 1339
+        },
+        "src/handlers/persona.ts": {
+          "bytesInOutput": 1431
+        },
+        "config/persona-emojis.ts": {
+          "bytesInOutput": 4429
+        },
+        "src/menus/debateMenu.ts": {
+          "bytesInOutput": 2783
+        },
+        "src/handlers/debate.ts": {
+          "bytesInOutput": 13119
+        },
+        "src/utils/occasions.ts": {
+          "bytesInOutput": 69351
+        },
+        "src/handlers/daily.ts": {
+          "bytesInOutput": 2169
+        },
+        "src/menus/reminderMenu.ts": {
+          "bytesInOutput": 10129
+        },
+        "src/handlers/reminder.ts": {
+          "bytesInOutput": 15625
+        },
+        "src/handlers/command.ts": {
+          "bytesInOutput": 15685
+        },
+        "src/parsers/htmlParser.ts": {
+          "bytesInOutput": 1411
+        },
+        "src/handlers/callback.ts": {
+          "bytesInOutput": 11905
+        },
+        "src/handlers/inline.ts": {
+          "bytesInOutput": 2125
+        },
+        "src/group-context.ts": {
+          "bytesInOutput": 7225
+        },
+        "src/utils/file.ts": {
+          "bytesInOutput": 4399
+        },
+        "src/utils/media.ts": {
+          "bytesInOutput": 6060
+        },
+        "src/handlers/message.ts": {
+          "bytesInOutput": 13840
+        },
+        "src/index.ts": {
+          "bytesInOutput": 7908
+        }
+      },
+      "bytes": 651333
+    }
+  }
+}
