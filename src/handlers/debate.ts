@@ -145,12 +145,20 @@ async function runDebateRound(env: Env, chatId: number | string, sessionId: numb
 
     let accumulated = '';
     try {
+      let lastEditTime = 0;
+      const STREAM_INTERVAL = 300;
       for await (const chunk of runChatStreaming(env, chatMessages, TOKEN_LIMIT_MEDIUM, 'fast')) {
         accumulated += chunk;
         if (debateMsg) {
           const display = roundText + accumulated;
-          await editMessage(chatId, debateMsg, display.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
+          if (Date.now() - lastEditTime >= STREAM_INTERVAL) {
+            lastEditTime = Date.now();
+            await editMessage(chatId, debateMsg, display.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
+          }
         }
+      }
+      if (debateMsg && accumulated) {
+        await editMessage(chatId, debateMsg, (roundText + accumulated).slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
       }
       if (!accumulated) {
         accumulated = await runChat(env, chatMessages, TOKEN_LIMIT_MEDIUM, 'fast');
