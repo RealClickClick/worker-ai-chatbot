@@ -1,8 +1,7 @@
 import { sendMessage, sendMessageWithId, editMessage } from '../telegram.ts';
 import { t } from '../locales.ts';
-import { runChat, runChatStreaming, cleanAIResponseText } from '../ai.ts';
-import { parseMarkdownToTelegramHTML } from '../parsers/htmlParser.ts';
-import { MAX_MESSAGE_LENGTH, TOKEN_LIMIT_MEDIUM, SILENT_MARKER } from '../constants.ts';
+import { runChat, cleanAIResponseText } from '../ai.ts';
+import { MAX_MESSAGE_LENGTH, TOKEN_LIMIT_MEDIUM } from '../constants.ts';
 import { getActiveDebateSession, createDebateSession, updateDebateSession, getDebateSession, 
 getDebateMessages, addDebateMessage } from '../services/index.ts';
 import { logger } from '../utils/logger.ts';
@@ -145,51 +144,17 @@ async function runDebateRound(env: Env, chatId: number | string, sessionId: numb
 
     let accumulated = '';
     try {
-      const AI_TIMEOUT = 25000;
-      const deadline = Date.now() + AI_TIMEOUT;
-      let lastEditTime = 0;
-      const STREAM_INTERVAL = 300;
-
-      try {
-        await Promise.race([
-          (async () => {
-            for await (const chunk of runChatStreaming(env, chatMessages, TOKEN_LIMIT_MEDIUM, 'fast')) {
-              accumulated += chunk;
-              if (debateMsg) {
-                const display = roundText + accumulated;
-                if (Date.now() - lastEditTime >= STREAM_INTERVAL) {
-                  lastEditTime = Date.now();
-                  await editMessage(chatId, debateMsg, display.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
-                }
-              }
-            }
-            return true;
-          })(),
-          new Promise<false>((_, reject) => setTimeout(() => reject(new Error('Streaming timed out')), AI_TIMEOUT)),
-        ]);
-
-        if (debateMsg && accumulated) {
-          await editMessage(chatId, debateMsg, (roundText + accumulated).slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
-        }
-      } catch (e: any) {
-        logger.error('Debate streaming error', { sessionId, persona, error: e.message });
-      }
-
-      if (!accumulated && Date.now() < deadline) {
-        const remaining = deadline - Date.now();
-        if (remaining > 2000) {
-          accumulated = await Promise.race([
-            runChat(env, chatMessages, TOKEN_LIMIT_MEDIUM, 'fast'),
-            new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Fallback timed out')), remaining)),
-          ]);
-        }
-      }
+      const AI_TIMEOUT = 40000;
+      accumulated = await Promise.race([
+        runChat(env, chatMessages, 800, 'fast'),
+        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('AI did not respond')), AI_TIMEOUT)),
+      ]);
     } catch (e: any) {
-      logger.error('Debate AI error (all attempts failed)', { sessionId, persona, error: (e as any).message });
+      logger.error('Debate AI error', { sessionId, persona, error: (e as any).message });
     }
 
     if (!accumulated) {
-      accumulated = '*[AI response unavailable]*';
+      accumulated = '*[No response from AI]*';
     }
 
     let cleanText = cleanAIResponseText(accumulated) || '';
