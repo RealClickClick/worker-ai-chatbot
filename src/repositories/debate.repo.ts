@@ -37,7 +37,7 @@ export async function getDebateMessages(env: Env, sessionId: number): Promise<De
   if (!env.DB) return [];
   const rows = await env.DB.prepare(
     'SELECT * FROM debate_messages WHERE session_id = ? ORDER BY id ASC'
-  ).all<DebateMessageRow>();
+  ).bind(sessionId).all<DebateMessageRow>();
   return rows.results || [];
 }
 
