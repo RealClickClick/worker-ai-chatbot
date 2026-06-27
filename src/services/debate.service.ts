@@ -286,12 +286,8 @@ export async function runDebateRound(env: Env, chatId: number | string, sessionI
     if (debateMsg) {
       await editMessage(chatId, debateMsg, roundText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
     }
-    try {
-      await addDebateMessage(env, sessionId, roundNumber, persona, cleanText);
-    } catch (e: any) {
-      logger.error('Debate addMessage error', { sessionId, round: roundNumber, persona, error: e.message });
-      personaFailed = true;
-    }
+    logger.info('Debate addMessage', { sessionId, round: roundNumber, persona, textLen: cleanText.length });
+    await addDebateMessage(env, sessionId, roundNumber, persona, cleanText);
 
     if (personaFailed) {
       await updateDebateSession(env, sessionId, { setup_step: 'retry' });
