@@ -1008,11 +1008,17 @@ buildGroupContext(chatId, userId, message)
 <b>src/</b>
 ├── <b>index.ts</b>              #  Worker entry — routing, webhook validation
 ├── <b>ai.ts</b>                 #  AI inference, system prompt builder, web search
-├── <b>ai.ts</b>                 #  AI inference, system prompt builder, web search
 ├── <b>db.ts</b>                 #  Backward-compat re-exports (legacy)
 ├── <b>locales.ts</b>            #  i18n — 5 languages, template interpolation
+├── <b>locales/</b>              #  Split locale data per language
+│   ├── <b>en.ts</b>              #  English (317 keys)
+│   ├── <b>fa.ts</b>              #  فارسی (316 keys)
+│   ├── <b>ar.ts</b>              #  العربية (291 keys)
+│   ├── <b>tr.ts</b>              #  Türkçe (291 keys)
+│   └── <b>ru.ts</b>              #  Русский (300 keys)
 ├── <b>telegram.ts</b>           #  Telegram API client — retry, chunking, uploads
 ├── <b>constants.ts</b>          #  Shared constants (rate limits, RAG, Piston, etc.)
+├── <b>model-config.ts</b>       #  Model registry, capabilities, cost config
 ├── <b>types/</b>
 │   ├── <b>env.d.ts</b>           #  Env interface, Telegram types, UserSettings
 │   └── <b>d1.ts</b>              #  D1 row type definitions
@@ -1029,11 +1035,16 @@ buildGroupContext(chatId, userId, message)
 │   └── <b>inline.ts</b>         #  Inline query handler
 ├── <b>menus/</b>
 │   ├── <b>modeMenu.ts</b>       #  Dynamic persona/model/language/keyboard menus
+│   ├── <b>debateMenu.ts</b>     #  Debate flow keyboard menus
 │   └── <b>reminderMenu.ts</b>   #  Date/time/recurrence picker keyboards
+├── <b>modes/</b>
+│   ├── <b>types.ts</b>          #  Mode system type definitions
+│   ├── <b>registry.ts</b>       #  Mode registry & Lookup
+│   └── <b>exam.ts</b>           #  Exam mode implementation
 ├── <b>parsers/</b>
 │   └── <b>htmlParser.ts</b>     #  Markdown → Telegram HTML converter
 ├── <b>repositories/</b>
-│   ├── <b>settings.repo.ts</b>  #  User settings + migrations (v1–v15)
+│   ├── <b>settings.repo.ts</b>  #  User settings + migrations (v1–v21)
 │   ├── <b>chat.repo.ts</b>      #  Chat history + group messages
 │   ├── <b>admin.repo.ts</b>     #  Rate limiting, blocks, analytics, timing
 │   ├── <b>cache.ts</b>          #  In-memory TTL cache
@@ -1044,6 +1055,8 @@ buildGroupContext(chatId, userId, message)
 │   └── <b>memory.repo.ts</b>    #  Memory summaries storage
 ├── <b>services/</b>
 │   ├── <b>index.ts</b>          #  Centralized service-layer re-exports
+│   ├── <b>settings.service.ts</b>  #  User settings business logic
+│   ├── <b>debate.service.ts</b>    #  Debate orchestration logic
 │   ├── <b>ensemble.service.ts</b>  #  Parallel model query + judge selection
 │   ├── <b>persona-adaptive.service.ts</b>  #  AI trait extraction from feedback
 │   ├── <b>router.service.ts</b>  #  Message classifier → model routing
