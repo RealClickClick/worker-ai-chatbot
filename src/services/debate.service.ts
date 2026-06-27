@@ -125,8 +125,8 @@ async function runJudgeRound(env: Env, sessionId: number, chatId: number | strin
   try {
     const session = await getDebateSession(env, sessionId);
     if (!session) return roundText;
-    if (!session.judge_enabled && !session.judge_persona) return roundText;
-    const judgePersona = session.judge_persona || 'judge';
+    if (!session.judge_persona) return roundText;
+    const judgePersona = session.judge_persona;
     const judgeEmoji = getPersonaEmoji(judgePersona);
     const judgeSystem = `You are an impartial discussion judge ${judgeEmoji}. Analyze the arguments just presented in Round ${roundNumber} of this ${style} on the topic "${topic}". Provide brief, constructive feedback (1-2 paragraphs). Identify the strongest points from each side. Be fair and insightful. Do NOT declare a winner yet — only analyze this round's arguments.`;
     const roundMsgs = await getDebateMessages(env, sessionId);
@@ -190,8 +190,8 @@ async function finishDebate(env: Env, chatId: number | string, sessionId: number
   const cleanSummary = cleanAIResponseText(summary) || 'Debate concluded.';
   let finalText = `━━━━━━━━━━━━━━━━\n📋 *Debate Summary*\n━━━━━━━━━━━━━━━━\n\n${cleanSummary}`;
 
-  if (session.judge_enabled) {
-    const judgePersona = session.judge_persona || 'judge';
+  if (session.judge_persona) {
+    const judgePersona = session.judge_persona;
     const judgeEmoji = getPersonaEmoji(judgePersona);
     const verdictPrompt = [
       { role: 'system', content: `${judgeEmoji} You are the final judge of a ${session.style} discussion. Score each participant out of 10, declare a winner, and explain your reasoning concisely (2-3 paragraphs). Be specific about what each participant did well and where they fell short.` },
