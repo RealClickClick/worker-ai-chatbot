@@ -28,9 +28,13 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
 
   if (data.startsWith('debate_')) {
     await answerCallback(callbackQuery.id, env);
-    const settings = await getSettings(env, chatId);
-    const lang = getLang(callbackQuery.from, settings.lang);
-    await handleDebateCallback(data, chatId, messageId, env, lang);
+    try {
+      const settings = await getSettings(env, chatId);
+      const lang = getLang(callbackQuery.from, settings.lang);
+      await handleDebateCallback(data, chatId, messageId, env, lang);
+    } catch (e: any) {
+      logger.error('Debate callback error', { chatId, data, error: e.message });
+    }
     return;
   }
 
