@@ -1007,9 +1007,18 @@ buildGroupContext(chatId, userId, message)
 ├── <b>ai.ts</b>                 #  AI inference, system prompt builder, web search
 ├── <b>db.ts</b>                 #  D1 layer — migrations, queries, caching, rate limiting
 ├── <b>locales.ts</b>            #  i18n — 5 languages, template interpolation
+├── <b>locales/</b>              #  Split locale data per language
+│   ├── <b>en.ts</b>              #  English (317 keys)
+│   ├── <b>fa.ts</b>              #  فارسی (316 keys)
+│   ├── <b>ar.ts</b>              #  العربية (291 keys)
+│   ├── <b>tr.ts</b>              #  Türkçe (291 keys)
+│   └── <b>ru.ts</b>              #  Русский (300 keys)
 ├── <b>telegram.ts</b>           #  Telegram API client — retry, chunking, uploads
+├── <b>constants.ts</b>          #  Shared constants (rate limits, RAG, Piston, etc.)
+├── <b>model-config.ts</b>       #  Model registry, capabilities, cost config
 ├── <b>types/</b>
-│   └── <b>env.d.ts</b>           #  Env interface, Telegram types, UserSettings
+│   ├── <b>env.d.ts</b>           #  Env interface, Telegram types, UserSettings
+│   └── <b>d1.ts</b>              #  D1 row type definitions
 ├── <b>handlers/</b>
 │   ├── <b>message.ts</b>        #  Message classifier (text/photo/voice/file/URL)
 │   ├── <b>command.ts</b>        #  All /slash command implementations
@@ -1019,12 +1028,38 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>persona.ts</b>        #  Custom persona creation
 │   ├── <b>daily.ts</b>          #  Daily tips management
 │   ├── <b>reminder.ts</b>       #  Reminder wizard + cron processing
-│   └── <b>debate.ts</b>         #  Multi-agent debate wizard
+│   ├── <b>debate.ts</b>         #  Multi-agent debate wizard
+│   └── <b>inline.ts</b>         #  Inline query handler
 ├── <b>menus/</b>
 │   ├── <b>modeMenu.ts</b>       #  Dynamic persona/model/language/keyboard menus
+│   ├── <b>debateMenu.ts</b>     #  Debate flow keyboard menus
 │   └── <b>reminderMenu.ts</b>   #  Reminder date/time picker and repeat menus
+├── <b>modes/</b>
+│   ├── <b>types.ts</b>          #  Mode system type definitions
+│   ├── <b>registry.ts</b>       #  Mode registry & lookup
+│   └── <b>exam.ts</b>           #  Exam mode implementation
 ├── <b>parsers/</b>
 │   └── <b>htmlParser.ts</b>     #  Markdown → Telegram HTML converter
+├── <b>repositories/</b>
+│   ├── <b>settings.repo.ts</b>  #  User settings + migrations (v1–v21)
+│   ├── <b>chat.repo.ts</b>      #  Chat history + group messages
+│   ├── <b>admin.repo.ts</b>     #  Rate limiting, blocks, analytics, timing
+│   ├── <b>cache.ts</b>          #  In-memory TTL cache
+│   ├── <b>persona.repo.ts</b>   #  Custom personas + adaptation feedback
+│   ├── <b>debate.repo.ts</b>    #  Debate sessions + messages
+│   ├── <b>reminder.repo.ts</b>  #  Reminders CRUD
+│   ├── <b>documents.repo.ts</b> #  RAG document storage & search
+│   └── <b>memory.repo.ts</b>    #  Memory summaries storage
+├── <b>services/</b>
+│   ├── <b>index.ts</b>          #  Centralized service-layer re-exports
+│   ├── <b>settings.service.ts</b>  #  User settings business logic
+│   ├── <b>debate.service.ts</b>    #  Debate orchestration logic
+│   ├── <b>ensemble.service.ts</b>  #  Parallel model query + judge selection
+│   ├── <b>persona-adaptive.service.ts</b>  #  AI trait extraction from feedback
+│   ├── <b>router.service.ts</b>  #  Message classifier → model routing
+│   ├── <b>rag.service.ts</b>     #  Text chunking, indexing, retrieval
+│   ├── <b>sandbox.service.ts</b> #  Piston API code execution (20 languages)
+│   └── <b>memory.service.ts</b>  #  AI summarization & context recall
 └── <b>utils/</b>
     ├── <b>logger.ts</b>         #  Structured JSON logging with request IDs
     ├── <b>error.ts</b>          #  AppError hierarchy, safe/retry wrappers
@@ -1034,7 +1069,8 @@ buildGroupContext(chatId, userId, message)
     └── <b>occasions.ts</b>      #  Occasions calendar for daily tips
 
 <b>config/</b>
-└── <b>personas.ts</b>           #  68 persona definitions (5 languages each)
+├── <b>personas.ts</b>           #  68 persona definitions (5 languages each)
+└── <b>persona-emojis.ts</b>     #  Emoji mappings for persona thinking states
 
 <b>tests/</b>
 ├── <b>unit/</b>                 #  164 unit tests (all modules)

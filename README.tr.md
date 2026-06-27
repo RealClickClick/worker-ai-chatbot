@@ -1007,9 +1007,18 @@ buildGroupContext(chatId, userId, message)
 ├── <b>ai.ts</b>                 #  AI çıkarımı, sistem promptu oluşturucu, web arama
 ├── <b>db.ts</b>                 #  D1 katmanı — migrasyonlar, sorgular, önbellekleme, hız sınırlama
 ├── <b>locales.ts</b>            #  i18n — 5 dil, şablon enterpolasyonu
+├── <b>locales/</b>              #  Her dil için ayrı locale dosyaları
+│   ├── <b>en.ts</b>              #  İngilizce (317 anahtar)
+│   ├── <b>fa.ts</b>              #  Farsça (316 anahtar)
+│   ├── <b>ar.ts</b>              #  Arapça (291 anahtar)
+│   ├── <b>tr.ts</b>              #  Türkçe (291 anahtar)
+│   └── <b>ru.ts</b>              #  Rusça (300 anahtar)
 ├── <b>telegram.ts</b>           #  Telegram API istemcisi — yeniden deneme, parçalama, yüklemeler
+├── <b>constants.ts</b>          #  Paylaşılan sabitler (hız limitleri, RAG, Piston, vb.)
+├── <b>model-config.ts</b>       #  Model kaydı, yetenekler, maliyet yapılandırması
 ├── <b>types/</b>
-│   └── <b>env.d.ts</b>           #  Ortam arayüzü, Telegram tipleri, UserSettings
+│   ├── <b>env.d.ts</b>           #  Ortam arayüzü, Telegram tipleri, UserSettings
+│   └── <b>d1.ts</b>              #  D1 satır tipi tanımları
 ├── <b>handlers/</b>
 │   ├── <b>message.ts</b>        #  Mesaj sınıflandırıcı (metin/fotoğraf/ses/dosya/URL)
 │   ├── <b>command.ts</b>        #  Tüm /slash komut uygulamaları
@@ -1019,12 +1028,38 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>persona.ts</b>        #  Özel karakter oluşturma
 │   ├── <b>daily.ts</b>          #  Günlük ipuçları cron işleyicisi
 │   ├── <b>reminder.ts</b>       #  Hatırlatıcı sihirbazı + cron işleme
-│   └── <b>debate.ts</b>         #  Çoklu ajan tartışma sihirbazı
+│   ├── <b>debate.ts</b>         #  Çoklu ajan tartışma sihirbazı
+│   └── <b>inline.ts</b>         #  Satır içi sorgu işleyici
 ├── <b>menus/</b>
 │   ├── <b>modeMenu.ts</b>       #  Dinamik karakter/model/dil/klavye menüleri
+│   ├── <b>debateMenu.ts</b>     #  Tartışma akışı klavye menüleri
 │   └── <b>reminderMenu.ts</b>   #  Tarih/saat/tekrarlama seçici klavyeleri
+├── <b>modes/</b>
+│   ├── <b>types.ts</b>          #  Mod sistemi tip tanımları
+│   ├── <b>registry.ts</b>       #  Mod kaydı ve arama
+│   └── <b>exam.ts</b>           #  Sınav modu uygulaması
 ├── <b>parsers/</b>
 │   └── <b>htmlParser.ts</b>     #  Markdown → Telegram HTML dönüştürücü
+├── <b>repositories/</b>
+│   ├── <b>settings.repo.ts</b>  #  Kullanıcı ayarları + migrasyonlar (v1–v21)
+│   ├── <b>chat.repo.ts</b>      #  Sohbet geçmişi + grup mesajları
+│   ├── <b>admin.repo.ts</b>     #  Hız sınırlama, engellemeler, analitik, zamanlama
+│   ├── <b>cache.ts</b>          #  Bellek içi TTL önbelleği
+│   ├── <b>persona.repo.ts</b>   #  Özel karakterler + uyarlama geri bildirimi
+│   ├── <b>debate.repo.ts</b>    #  Tartışma oturumları + mesajlar
+│   ├── <b>reminder.repo.ts</b>  #  Hatırlatıcı CRUD
+│   ├── <b>documents.repo.ts</b> #  RAG belge depolama ve arama
+│   └── <b>memory.repo.ts</b>    #  Bellek özetleri depolama
+├── <b>services/</b>
+│   ├── <b>index.ts</b>          #  Merkezi hizmet katmanı yeniden dışa aktarımları
+│   ├── <b>settings.service.ts</b>  #  Kullanıcı ayarları iş mantığı
+│   ├── <b>debate.service.ts</b>    #  Tartışma orkestrasyon mantığı
+│   ├── <b>ensemble.service.ts</b>  #  Paralel model sorgulama + jüri seçimi
+│   ├── <b>persona-adaptive.service.ts</b>  #  Geri bildirimden AI özellik çıkarımı
+│   ├── <b>router.service.ts</b>  #  Mesaj sınıflandırıcı → model yönlendirme
+│   ├── <b>rag.service.ts</b>     #  Metin parçalama, indeksleme, getirme
+│   ├── <b>sandbox.service.ts</b> #  Piston API kod yürütme (20 dil)
+│   └── <b>memory.service.ts</b>  #  AI özetleme ve bağlam hatırlama
 └── <b>utils/</b>
     ├── <b>logger.ts</b>         #  İstek ID'leri ile yapılandırılmış JSON günlükleme
     ├── <b>error.ts</b>          #  AppError hiyerarşisi, güvenli/tekrar deneme sarmalayıcıları
@@ -1034,7 +1069,8 @@ buildGroupContext(chatId, userId, message)
     └── <b>occasions.ts</b>      #  Günlük ipuçları için tatil/özel gün takvimi
 
 <b>config/</b>
-└── <b>personas.ts</b>           #  68 karakter tanımı (her biri 5 dilde)
+├── <b>personas.ts</b>           #  68 karakter tanımı (her biri 5 dilde)
+└── <b>persona-emojis.ts</b>     #  Karakter düşünme durumları için emoji eşleştirmeleri
 
 <b>tests/</b>
 ├── <b>unit/</b>                 #  164 birim testi (tüm modüller)

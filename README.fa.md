@@ -1012,9 +1012,18 @@ buildGroupContext(chatId, userId, message)
 ├── <b>ai.ts</b>                 #  استنتاج هوش مصنوعی، ساختن system prompt، جستجوی وب
 ├── <b>db.ts</b>                 #  لایه D1 — مهاجرت‌ها، پرس‌وجوها، کش، محدودیت نرخ
 ├── <b>locales.ts</b>            #  بین‌المللی‌سازی (i18n) — ۵ زبان، درون‌یابی قالب
+├── <b>locales/</b>              #  فایل‌های جداگانه هر زبان
+│   ├── <b>en.ts</b>              #  انگلیسی (317 کلید)
+│   ├── <b>fa.ts</b>              #  فارسی (316 کلید)
+│   ├── <b>ar.ts</b>              #  عربی (291 کلید)
+│   ├── <b>tr.ts</b>              #  ترکی (291 کلید)
+│   └── <b>ru.ts</b>              #  روسی (300 کلید)
 ├── <b>telegram.ts</b>           #  کلاینت Telegram API — تلاش مجدد، تکه‌تکه‌کردن، بارگذاری
+├── <b>constants.ts</b>          #  ثابت‌های مشترک (محدودیت نرخ، RAG، Piston و غیره)
+├── <b>model-config.ts</b>       #  ثبت مدل‌ها، قابلیت‌ها، پیکربندی هزینه
 ├── <b>types/</b>
-│   └── <b>env.d.ts</b>           #  رابط Env، انواع Telegram، UserSettings
+│   ├── <b>env.d.ts</b>           #  رابط Env، انواع Telegram، UserSettings
+│   └── <b>d1.ts</b>              #  تعریف انواع ردیف‌های D1
 ├── <b>handlers/</b>
 │   ├── <b>message.ts</b>        #  طبقه‌بندی پیام (متن/عکس/صدا/فایل/URL)
 │   ├── <b>command.ts</b>        #  پیاده‌سازی تمام دستورات /slash
@@ -1024,12 +1033,38 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>persona.ts</b>        #  ساخت شخصیت سفارشی
 │   ├── <b>daily.ts</b>          #  مدیریت نکات روزانه
 │   ├── <b>reminder.ts</b>       #  جادوگر یادآور + پردازش کرون
-│   └── <b>debate.ts</b>         #  جادوگر بحث چندعامله
+│   ├── <b>debate.ts</b>         #  جادوگر بحث چندعامله
+│   └── <b>inline.ts</b>         #  مدیریت پرس‌وجوی درون‌خطی
 ├── <b>menus/</b>
 │   ├── <b>modeMenu.ts</b>       #  منوهای شخصیت/مدل/زبان/کیبورد
+│   ├── <b>debateMenu.ts</b>     #  منوهای کیبورد جریان بحث
 │   └── <b>reminderMenu.ts</b>   #  کیبوردهای انتخابگر تاریخ/زمان/تکرار
+├── <b>modes/</b>
+│   ├── <b>types.ts</b>          #  تعریف انواع سیستم حالت
+│   ├── <b>registry.ts</b>       #  ثبت و جستجوی حالت‌ها
+│   └── <b>exam.ts</b>           #  پیاده‌سازی حالت امتحان
 ├── <b>parsers/</b>
 │   └── <b>htmlParser.ts</b>     #  مبدل Markdown به Telegram HTML
+├── <b>repositories/</b>
+│   ├── <b>settings.repo.ts</b>  #  تنظیمات کاربر + مهاجرت‌ها (v1–v21)
+│   ├── <b>chat.repo.ts</b>      #  تاریخچه چت + پیام‌های گروهی
+│   ├── <b>admin.repo.ts</b>     #  محدودیت نرخ، مسدودها، آمار، زمان‌بندی
+│   ├── <b>cache.ts</b>          #  کش TTL درون‌حافظه‌ای
+│   ├── <b>persona.repo.ts</b>   #  شخصیت‌های سفارشی + بازخورد تطبیق
+│   ├── <b>debate.repo.ts</b>    #  جلسات بحث + پیام‌ها
+│   ├── <b>reminder.repo.ts</b>  #  عملیات CRUD یادآورها
+│   ├── <b>documents.repo.ts</b> #  ذخیره و جستجوی اسناد RAG
+│   └── <b>memory.repo.ts</b>    #  ذخیره خلاصه‌های حافظه
+├── <b>services/</b>
+│   ├── <b>index.ts</b>          #  صادرات مجدد متمرکز لایه سرویس
+│   ├── <b>settings.service.ts</b>  #  منطق کسب‌وکار تنظیمات کاربر
+│   ├── <b>debate.service.ts</b>    #  منطق orchestration بحث
+│   ├── <b>ensemble.service.ts</b>  #  پرس‌وجوی موازی مدل + انتخاب داور
+│   ├── <b>persona-adaptive.service.ts</b>  #  استخراج ویژگی‌های AI از بازخورد
+│   ├── <b>router.service.ts</b>  #  طبقه‌بندی پیام → مسیریابی مدل
+│   ├── <b>rag.service.ts</b>     #  تکه‌تکه‌سازی متن، ایندکس‌گذاری، بازیابی
+│   ├── <b>sandbox.service.ts</b> #  اجرای کد Piston API (۲۰ زبان)
+│   └── <b>memory.service.ts</b>  #  خلاصه‌سازی AI و یادآوری متن
 └── <b>utils/</b>
     ├── <b>logger.ts</b>         #  ثبت وقایع ساختاریافته JSON با شناسه درخواست
     ├── <b>error.ts</b>          #  سلسله‌مراتب AppError، لفاف‌های ایمن/تلاش مجدد
@@ -1039,7 +1074,8 @@ buildGroupContext(chatId, userId, message)
     └── <b>occasions.ts</b>      #  تقویم مناسبت‌ها برای نکات روزانه
 
 <b>config/</b>
-└── <b>personas.ts</b>           #  ۶۸ تعریف شخصیت (هرکدام به ۵ زبان)
+├── <b>personas.ts</b>           #  ۶۸ تعریف شخصیت (هرکدام به ۵ زبان)
+└── <b>persona-emojis.ts</b>     #  نگاشت ایموجی برای حالت‌های فکری شخصیت
 
 <b>tests/</b>
 ├── <b>unit/</b>                 #  ۱۶۴ تست واحد (همه ماژول‌ها)
