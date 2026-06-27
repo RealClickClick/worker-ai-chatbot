@@ -84,3 +84,10 @@ export async function deleteDebateRoundMessages(env: Env, sessionId: number, rou
     'DELETE FROM debate_messages WHERE session_id = ? AND round_number = ?'
   ).bind(sessionId, roundNumber).run();
 }
+
+export async function deleteDebateRoundPersonaMessage(env: Env, sessionId: number, roundNumber: number, personaName: string): Promise<void> {
+  if (!env.DB) return;
+  await env.DB.prepare(
+    'DELETE FROM debate_messages WHERE session_id = ? AND round_number = ? AND persona_name = ?'
+  ).bind(sessionId, roundNumber, personaName).run();
+}

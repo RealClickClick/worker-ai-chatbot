@@ -2,9 +2,9 @@ import { sendMessage, sendMessageWithId, editMessage } from '../telegram.ts';
 import { t } from '../locales.ts';
 import { MAX_MESSAGE_LENGTH, MIN_DEBATE_ROUNDS, MAX_DEBATE_ROUNDS, DEBATE_USER_TIMEOUT } from '../constants.ts';
 import { getActiveDebateSession, createDebateSession, updateDebateSession, getDebateSession, 
-getDebateMessages, addDebateMessage, deleteDebateRoundMessages, getDebateSessions,
+getDebateMessages, addDebateMessage, deleteDebateRoundPersonaMessage, getDebateSessions,
 saveDebateTemplate, getDebateTemplates } from '../services/index.ts';
-import { runDebateRound, resumeDebateRoundAfterUser, initDebate, finishDebate, getPersonaEmoji } from '../services/debate.service.ts';
+import { runDebateRound, resumeDebateRoundAfterUser, retryPersonaInRound, initDebate, finishDebate, getPersonaEmoji } from '../services/debate.service.ts';
 import { logger } from '../utils/logger.ts';
 import { buildStyleKeyboard, buildRoundsKeyboard, buildPersonaCategoryKeyboard, buildPersonaSubKeyboard, buildDebateContinueKeyboard, buildRetryKeyboard, buildJudgeToggleKeyboard, buildParticipateKeyboard, buildPickSideKeyboard, buildRoleSwapKeyboard, isAsymmetricStyle } from '../menus/debateMenu.ts';
 import type { Env } from '../types/env.d.ts';
@@ -60,7 +60,11 @@ export async function handleDebateCallback(data: string, chatId: number | string
     const userId = Number(chatId);
     const sessionId = await createDebateSession(env, chatId, userId);
     await updateDebateSession(env, sessionId, { persona_1: tmpl.persona_1, persona_2: tmpl.persona_2, style: tmpl.style, setup_step: 'rounds' });
-    await editMessage(chatId, messageId, t(lang, 'debate_rounds_prompt'), env, 'Markdown', buildRoundsKeyboard(lang));
+    if (isAsymmetricStyle(tmpl.style)) {
+      await editMessage(chatId, messageId, t(lang, 'debate_roles_prompt'), env, 'Markdown', buildRoleSwapKeyboard(lang, tmpl.persona_1, tmpl.persona_2, tmpl.style));
+    } else {
+      await editMessage(chatId, messageId, t(lang, 'debate_rounds_prompt'), env, 'Markdown', buildRoundsKeyboard(lang));
+    }
     return true;
   }
 
@@ -71,10 +75,10 @@ export async function handleDebateCallback(data: string, chatId: number | string
   if (retryMatch) {
     if (!session) return false;
     const retryRound = parseInt(retryMatch[1], 10);
+    const personaIdx = parseInt(retryMatch[2], 10);
     if (retryRound !== (session.current_round || 0)) return false;
     await editMessage(chatId, messageId, '🔄 Retrying...', env);
-    await deleteDebateRoundMessages(env, session.id, retryRound);
-    await runDebateRound(env, chatId, session.id, retryRound, lang);
+    await retryPersonaInRound(env, chatId, session.id, retryRound, personaIdx, lang);
     return true;
   }
 
@@ -141,7 +145,7 @@ export async function handleDebateCallback(data: string, chatId: number | string
     const style = styleMatch[1];
     await updateDebateSession(env, session.id, { style, setup_step: 'rounds' });
     if (isAsymmetricStyle(style) && session.persona_1 && session.persona_2) {
-      await editMessage(chatId, messageId, t(lang, 'debate_roles_prompt'), env, 'Markdown', buildRoleSwapKeyboard(lang, session.persona_1, session.persona_2));
+      await editMessage(chatId, messageId, t(lang, 'debate_roles_prompt'), env, 'Markdown', buildRoleSwapKeyboard(lang, session.persona_1, session.persona_2, style));
       return true;
     }
     await editMessage(chatId, messageId, t(lang, 'debate_rounds_prompt'), env, 'Markdown', buildRoundsKeyboard(lang));

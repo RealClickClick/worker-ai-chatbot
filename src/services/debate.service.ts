@@ -3,7 +3,7 @@ import { t } from '../locales.ts';
 import { runChat, cleanAIResponseText } from '../ai.ts';
 import { MAX_MESSAGE_LENGTH, TOKEN_LIMIT_MEDIUM, DEBATE_TOKEN_LIMIT, DEBATE_AI_TIMEOUT, DEBATE_HISTORY_TRUNCATE } from '../constants.ts';
 import { getActiveDebateSession, createDebateSession, updateDebateSession, getDebateSession, 
-getDebateMessages, addDebateMessage, deleteDebateRoundMessages } from './index.ts';
+getDebateMessages, addDebateMessage, deleteDebateRoundMessages, deleteDebateRoundPersonaMessage } from './index.ts';
 import { logger } from '../utils/logger.ts';
 import { PERSONAS } from '../../config/personas.ts';
 import { PERSONA_THINKING_EMOJIS } from '../../config/persona-emojis.ts';
@@ -24,9 +24,16 @@ function formatDebateHistory(persona1: string, persona2: string, messages: any[]
   if (!messages.length) return { text: '', isEmpty: true };
   const lines: string[] = [];
   let lastSpeaker = '';
+  let lastRound = 0;
   for (const msg of messages) {
     if (!msg.message_text) continue;
     if (msg.persona_name !== persona1 && msg.persona_name !== persona2) continue;
+    if (msg.round_number && msg.round_number !== lastRound) {
+      if (lastRound > 0) lines.push('');
+      lines.push(`[Round ${msg.round_number}]`);
+      lastRound = msg.round_number;
+      lastSpeaker = '';
+    }
     const speakerEmoji = getPersonaEmoji(msg.persona_name);
     const speaker = msg.persona_name;
     if (speaker !== lastSpeaker) {
@@ -155,7 +162,7 @@ async function finishDebate(env: Env, chatId: number | string, sessionId: number
   if (!session) return;
 
   const historyText = messages.map(m =>
-    `${m.persona_name}: ${m.message_text.slice(0, 200)}`
+    `${m.persona_name}: ${(m.message_text || '').slice(0, 300)}`
   ).join('\n');
 
   const summaryPrompt = [
@@ -177,12 +184,9 @@ async function finishDebate(env: Env, chatId: number | string, sessionId: number
   if (session.judge_enabled) {
     const judgePersona = session.judge_persona || 'judge';
     const judgeEmoji = getPersonaEmoji(judgePersona);
-    const fullHistory = messages.map(m =>
-      `${m.persona_name}: ${(m.message_text || '').slice(0, 300)}`
-    ).join('\n');
     const verdictPrompt = [
       { role: 'system', content: `${judgeEmoji} You are the final judge of a ${session.style} discussion. Score each participant out of 10, declare a winner, and explain your reasoning concisely (2-3 paragraphs). Be specific about what each participant did well and where they fell short.` },
-      { role: 'user', content: `Topic: ${session.topic}\nStyle: ${session.style}\n\nFull discussion:\n${fullHistory}\n\nProvide your final verdict with scores.` }
+      { role: 'user', content: `Topic: ${session.topic}\nStyle: ${session.style}\n\nFull discussion:\n${historyText}\n\nProvide your final verdict with scores.` }
     ];
     let verdict = '';
     try {
@@ -256,24 +260,7 @@ export async function runDebateRound(env: Env, chatId: number | string, sessionI
 
     let accumulated = '';
     let personaFailed = false;
-    try {
-      accumulated = await Promise.race([
-        runChat(env, [
-          { role: 'system', content: buildPersonaSystemPrompt(persona, lang, role, topic, style, roundNumber, totalRounds) },
-          { role: 'user', content: (() => {
-            const { text: formattedHistory, isEmpty: noHistory } = formatDebateHistory(p1!, p2!, history);
-            return noHistory
-              ? `You are starting the discussion on the topic: "${topic}".`
-              : `Continue the discussion. The conversation so far:\n${formattedHistory}\n\nNow respond as ${persona} (${role}) — directly address the previous points, build on them or challenge them.`;
-          })() }
-        ], DEBATE_TOKEN_LIMIT, 'fast'),
-        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('AI did not respond')), DEBATE_AI_TIMEOUT)),
-      ]);
-    } catch (e: any) {
-      personaFailed = true;
-      logger.error('Debate AI error', { sessionId, persona, error: (e as any).message });
-    }
-
+    accumulated = await generateAITurn(env, sessionId, persona, role, lang, topic, style, roundNumber, totalRounds, history, p1!, p2!);
     if (!accumulated) {
       accumulated = '*[No response from AI]*';
       personaFailed = true;
@@ -369,6 +356,78 @@ export async function resumeDebateRoundAfterUser(env: Env, chatId: number | stri
     }
   } catch (e: any) {
     logger.error('Debate continue/finish error (after user)', { sessionId, round: roundNumber, error: e.message });
+  }
+}
+
+export async function retryPersonaInRound(env: Env, chatId: number | string, sessionId: number, roundNumber: number, personaIndex: number, lang: string): Promise<void> {
+  const session = await getDebateSession(env, sessionId);
+  if (!session || session.status !== 'active') return;
+
+  const p1 = session.persona_1!;
+  const p2 = session.persona_2!;
+  const topic = session.topic || 'General discussion';
+  const style = session.style || 'debate';
+  const totalRounds = session.max_rounds || 3;
+  const [role1, role2] = getRoles(style, !!session.roles_swapped);
+  const debateMsg = session.message_id;
+  const isLastRound = roundNumber >= totalRounds;
+
+  const failedPersona = personaIndex === 0 ? p1 : p2;
+  await deleteDebateRoundPersonaMessage(env, sessionId, roundNumber, failedPersona);
+
+  let roundText = await buildRoundDisplayText(env, sessionId, p1, p2, topic, roundNumber, totalRounds);
+
+  const personas = personaIndex === 0
+    ? [[p1, role1], [p2, role2]] as [string, string][]
+    : [[p2, role2]] as [string, string][];
+
+  for (const [persona, role] of personas) {
+    if (session.participant_persona && persona === session.participant_persona) {
+      const emoji = getPersonaEmoji(persona);
+      roundText += `\n${emoji} *${persona}* (${role})\n`;
+      if (debateMsg) {
+        await editMessage(chatId, debateMsg, roundText.trim(), env, 'Markdown');
+      }
+      const now = new Date().toISOString();
+      await updateDebateSession(env, sessionId, { setup_step: 'waiting_user', waiting_since: now });
+      const prompt = t(lang, 'debate_your_turn', { round: String(roundNumber) });
+      await sendMessage(chatId, prompt, env);
+      return;
+    }
+
+    const history = await getDebateMessages(env, sessionId);
+    const emoji = getPersonaEmoji(persona);
+    roundText += `\n${emoji} *${persona}* (${role})\n`;
+    if (debateMsg) {
+      await editMessage(chatId, debateMsg, roundText.trim(), env, 'Markdown');
+    }
+
+    const result = await generateAITurn(env, sessionId, persona, role, lang, topic, style, roundNumber, totalRounds, history, p1, p2);
+    const cleanText = cleanPersonaResponse(result || '*[No response from AI]*', persona);
+    roundText += cleanText + '\n';
+    if (debateMsg) {
+      await editMessage(chatId, debateMsg, roundText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
+    }
+    await addDebateMessage(env, sessionId, roundNumber, persona, cleanText);
+  }
+
+  await updateDebateSession(env, sessionId, { setup_step: 'active' });
+
+  roundText = await runJudgeRound(env, sessionId, chatId, roundNumber, roundText, p1, p2, style, topic, debateMsg, lang);
+
+  try {
+    if (isLastRound) {
+      await finishDebate(env, chatId, sessionId, lang, debateMsg);
+    } else {
+      const continueText = (roundText + '\n━━━━━━━━━━━━━━━━').slice(0, MAX_MESSAGE_LENGTH);
+      if (debateMsg) {
+        await editMessage(chatId, debateMsg, continueText, env, 'Markdown', buildDebateContinueKeyboard(lang, true));
+      } else {
+        await sendMessage(chatId, continueText, env, 'Markdown', buildDebateContinueKeyboard(lang, true));
+      }
+    }
+  } catch (e: any) {
+    logger.error('Debate retry continue/finish error', { sessionId, round: roundNumber, error: e.message });
   }
 }
 
