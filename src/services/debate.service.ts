@@ -125,13 +125,17 @@ async function runJudgeRound(env: Env, sessionId: number, chatId: number | strin
   try {
     const session = await getDebateSession(env, sessionId);
     if (!session) return roundText;
-    if (!session.judge_persona) return roundText;
+    if (!session.judge_persona) {
+      logger.warn('Judge round skipped - no judge_persona', { sessionId, round: roundNumber });
+      return roundText;
+    }
     const judgePersona = session.judge_persona;
     const judgeEmoji = getPersonaEmoji(judgePersona);
     const judgeSystem = `You are an impartial discussion judge ${judgeEmoji}. Analyze the arguments just presented in Round ${roundNumber} of this ${style} on the topic "${topic}". Provide brief, constructive feedback (1-2 paragraphs). Identify the strongest points from each side. Be fair and insightful. Do NOT declare a winner yet — only analyze this round's arguments.`;
     const roundMsgs = await getDebateMessages(env, sessionId);
     const recentMsgs = roundMsgs.filter(m => m.round_number === roundNumber);
     const judgeInput = `${p1}: ${(recentMsgs.find(m => m.persona_name === p1)?.message_text || '').slice(0, 1500)}\n\n${p2}: ${(recentMsgs.find(m => m.persona_name === p2)?.message_text || '').slice(0, 1500)}`;
+    logger.info('Judge round start', { sessionId, round: roundNumber, judgePersona, recentCount: recentMsgs.length, inputLen: judgeInput.length });
     let judgeFeedback = '';
     try {
       judgeFeedback = await Promise.race([
@@ -141,10 +145,12 @@ async function runJudgeRound(env: Env, sessionId: number, chatId: number | strin
         ], DEBATE_TOKEN_LIMIT, 'fast'),
         new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Judge timed out')), DEBATE_AI_TIMEOUT)),
       ]);
+      logger.info('Judge round AI done', { sessionId, round: roundNumber, feedbackLen: judgeFeedback.length });
     } catch (e: any) {
       logger.error('Debate judge round error', { sessionId, round: roundNumber, error: e.message });
     }
     if (judgeFeedback) {
+      logger.info('Judge round adding feedback', { sessionId, round: roundNumber });
       const cleanJudge = cleanAIResponseText(judgeFeedback) || '';
       roundText += `\n━━━ ⚖️ *${judgePersona}* (Judge) ━━━\n${cleanJudge}\n`;
       if (debateMsg) {
@@ -280,7 +286,12 @@ export async function runDebateRound(env: Env, chatId: number | string, sessionI
     if (debateMsg) {
       await editMessage(chatId, debateMsg, roundText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
     }
-    await addDebateMessage(env, sessionId, roundNumber, persona, cleanText);
+    try {
+      await addDebateMessage(env, sessionId, roundNumber, persona, cleanText);
+    } catch (e: any) {
+      logger.error('Debate addMessage error', { sessionId, round: roundNumber, persona, error: e.message });
+      personaFailed = true;
+    }
 
     if (personaFailed) {
       await updateDebateSession(env, sessionId, { setup_step: 'retry' });
@@ -294,7 +305,9 @@ export async function runDebateRound(env: Env, chatId: number | string, sessionI
 
   await updateDebateSession(env, sessionId, { setup_step: 'active' });
 
+  logger.info('Debate round personas done, calling judge', { sessionId, round: roundNumber });
   roundText = await runJudgeRound(env, sessionId, chatId, roundNumber, roundText, p1!, p2!, style, topic, debateMsg, lang);
+  logger.info('Debate round judge done', { sessionId, round: roundNumber });
 
   try {
     if (isLastRound) {
