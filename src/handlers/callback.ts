@@ -17,6 +17,7 @@ import { LANGUAGE_TIMEZONE_MAP } from '../constants.ts';
 import { MODELS, IMAGE_MODELS, runChat, getTokenLimit, cleanAIResponseText } from '../ai.ts';
 
 import { logger } from '../utils/logger.ts';
+import { handleModeCallbackWithState } from '../modes/registry.ts';
 import type { Env, TelegramCallbackQuery } from '../types/env.d.ts';
 
 export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, env: Env): Promise<void> {
@@ -25,11 +26,24 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
   const chatId = msg.chat.id;
   const messageId = msg.message_id;
   const data = callbackQuery.data;
+  const userId = String(chatId).startsWith('-') ? callbackQuery.from?.id : undefined;
+
+  // -- Mode System callbacks --
+  if (data.startsWith('mode_')) {
+    const settings = await getSettings(env, chatId, userId);
+    const lang = getLang(callbackQuery.from, settings.lang);
+    const modeCtx = { env, chatId, userId: callbackQuery.from?.id || 0, userName: callbackQuery.from?.first_name || 'User', lang, modeData: settings.mode_data };
+    const modeResult = await handleModeCallbackWithState(modeCtx, data, messageId, settings.active_mode);
+    if (modeResult?.consumed) {
+      await answerCallback(callbackQuery.id, env);
+      return;
+    }
+  }
 
   if (data.startsWith('debate_')) {
     await answerCallback(callbackQuery.id, env);
     try {
-      const settings = await getSettings(env, chatId);
+      const settings = await getSettings(env, chatId, userId);
       const lang = getLang(callbackQuery.from, settings.lang);
       await handleDebateCallback(data, chatId, messageId, env, lang);
     } catch (e: any) {
@@ -39,14 +53,14 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
   }
 
   if (data.startsWith('rem_')) {
-    const settings = await getSettings(env, chatId);
+    const settings = await getSettings(env, chatId, userId);
     const lang = getLang(callbackQuery.from, settings.lang);
     await answerCallback(callbackQuery.id, env);
     await handleReminderCallback(data, chatId, messageId, env, lang);
     return;
   }
 
-  const settings = await getSettings(env, chatId);
+  const settings = await getSettings(env, chatId, userId);
   const lang = getLang(callbackQuery.from, settings.lang);
 
   if (data === 'clear_memory') {
@@ -90,7 +104,7 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
   }
 
   if (data.startsWith('set_mode_')) {
-    await setPersona(env, chatId, data.replace('set_mode_', ''));
+    await setPersona(env, chatId, data.replace('set_mode_', ''), userId);
     await answerCallback(callbackQuery.id, env, t(lang, 'persona_updated'));
     return await showModeMenu(chatId, env, lang, messageId);
   }
@@ -99,34 +113,34 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
     const pName = data.replace('set_custom_', '');
     const personas = await getCustomPersonas(env, chatId);
     const match = personas.find(p => p.name === pName);
-    if (match) await setCustomInstructions(env, chatId, match.description);
-    await setPersona(env, chatId, 'standard');
+    if (match) await setCustomInstructions(env, chatId, match.description, userId);
+    await setPersona(env, chatId, 'standard', userId);
     await answerCallback(callbackQuery.id, env, t(lang, 'persona_updated'));
     return await showModeMenu(chatId, env, lang, messageId);
   }
 
   if (data.startsWith('set_model_')) {
     const mk = data.replace('set_model_', '');
-    await setAiModel(env, chatId, mk);
+    await setAiModel(env, chatId, mk, userId);
     await answerCallback(callbackQuery.id, env, t(lang, 'model_updated', { model: t(lang, MODELS[mk]?.label || '') }));
     return await showSettings(chatId, env, lang, messageId);
   }
 
   if (data.startsWith('set_img_model_')) {
     const imk = data.replace('set_img_model_', '');
-    await setImgModel(env, chatId, imk);
+    await setImgModel(env, chatId, imk, userId);
     await answerCallback(callbackQuery.id, env, t(lang, 'model_updated', { model: t(lang, IMAGE_MODELS[imk]?.label || '') }));
     return await showSettings(chatId, env, lang, messageId);
   }
 
   if (data.startsWith('set_lang_')) {
     const nl = data.replace('set_lang_', '');
-    await setLanguage(env, chatId, nl === 'auto' ? null : nl);
+    await setLanguage(env, chatId, nl === 'auto' ? null : nl, userId);
     const newLang = nl === 'auto' ? lang : nl;
     const tz = LANGUAGE_TIMEZONE_MAP[newLang] || 'UTC';
-    const s: any = await getSettings(env, chatId);
+    const s: any = await getSettings(env, chatId, userId);
     if (!s.timezone || s.timezone === 'UTC' || s.timezone === LANGUAGE_TIMEZONE_MAP[lang]) {
-      await setTimezone(env, chatId, tz);
+      await setTimezone(env, chatId, tz, userId);
     }
     await answerCallback(callbackQuery.id, env, t(lang, 'lang_updated'));
     return await showSettings(chatId, env, lang, messageId);
@@ -138,7 +152,7 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
   }
 
   if (data === 'toggle_length') {
-    await toggleResponseLength(env, chatId);
+    await toggleResponseLength(env, chatId, userId);
     await answerCallback(callbackQuery.id, env);
     return await showSettings(chatId, env, lang, messageId);
   }
@@ -192,7 +206,7 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
 
   if (data === 'stats') {
     await answerCallback(callbackQuery.id, env);
-    const s = await getSettings(env, chatId);
+    const s = await getSettings(env, chatId, userId);
     return await sendMessage(chatId, t(lang, 'stats_title', {
       persona: (s.persona || 'Standard').toUpperCase(),
       model: t(lang, MODELS[s.ai_model]?.label || 'model_fast'),
@@ -209,29 +223,66 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
 
   if (data === 'back_start') {
     await answerCallback(callbackQuery.id, env);
-    return await editMessage(chatId, messageId, t(lang, 'start_glass', { user: callbackQuery.from.first_name || 'User' }), env, 'Markdown', {
+    const s = await getSettings(env, chatId, userId);
+    const persona = (s.persona || 'Standard').toUpperCase();
+    const model = t(lang, MODELS[s.ai_model]?.label || 'model_fast');
+    const lengthLabel = t(lang, `length_${s.response_length || 'short'}`);
+    return await editMessage(chatId, messageId, t(lang, 'start_glass', { user: callbackQuery.from.first_name || 'User', persona, model, length: lengthLabel }), env, 'Markdown', {
       inline_keyboard: [
-        [{ text: t(lang, 'btn_personas'), callback_data: 'menu_mode' }],
-        [{ text: t(lang, 'btn_settings_icon'), callback_data: 'menu_settings' }],
-        [{ text: t(lang, 'btn_profile'), callback_data: 'profile' }]
+        [{ text: t(lang, 'btn_personas'), callback_data: 'menu_mode' },
+         { text: t(lang, 'btn_model'), callback_data: 'menu_model' }],
+        [{ text: t(lang, 'btn_settings_icon'), callback_data: 'menu_settings' },
+         { text: t(lang, 'btn_image'), callback_data: 'img_help' }],
+        [{ text: t(lang, 'btn_profile'), callback_data: 'profile' },
+         { text: t(lang, 'btn_help'), callback_data: 'help' }],
+        [{ text: t(lang, 'btn_search'), callback_data: 'search_help' },
+         { text: t(lang, 'btn_tts'), callback_data: 'tts_help' }],
+        [{ text: t(lang, 'btn_new_chat'), callback_data: 'new_chat' },
+         { text: t(lang, 'btn_clear'), callback_data: 'clear_memory' }]
       ]
     });
   }
 
+  if (data === 'help') {
+    await answerCallback(callbackQuery.id, env);
+    return await sendMessage(chatId, t(lang, 'help_message'), env, 'Markdown');
+  }
+
+  if (data === 'img_help') {
+    await answerCallback(callbackQuery.id, env);
+    return await sendMessage(chatId, t(lang, 'image_prompt_required'), env);
+  }
+
+  if (data === 'search_help') {
+    await answerCallback(callbackQuery.id, env);
+    return await sendMessage(chatId, t(lang, 'search_query_required'), env);
+  }
+
+  if (data === 'tts_help') {
+    await answerCallback(callbackQuery.id, env);
+    return await sendMessage(chatId, t(lang, 'tts_usage'), env);
+  }
+
+  if (data === 'new_chat') {
+    await clearChat(env, chatId);
+    await answerCallback(callbackQuery.id, env, t(lang, 'cleared'));
+    return await sendMessage(chatId, t(lang, 'cleared'), env);
+  }
+
   if (data === 'toggle_memory') {
-    await toggleMemory(env, chatId);
+    await toggleMemory(env, chatId, userId);
     await answerCallback(callbackQuery.id, env);
     return await showSettings(chatId, env, lang, messageId);
   }
 
   if (data === 'toggle_formatting') {
-    await toggleFormatting(env, chatId);
+    await toggleFormatting(env, chatId, userId);
     await answerCallback(callbackQuery.id, env);
     return await showSettings(chatId, env, lang, messageId);
   }
 
   if (data === 'toggle_feedback') {
-    await toggleFeedback(env, chatId);
+    await toggleFeedback(env, chatId, userId);
     await answerCallback(callbackQuery.id, env);
     return await showSettings(chatId, env, lang, messageId);
   }
@@ -249,7 +300,7 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
 
   if (data.startsWith('set_timezone_')) {
     const tz = data.replace('set_timezone_', '');
-    await setTimezone(env, chatId, tz);
+    await setTimezone(env, chatId, tz, userId);
     await answerCallback(callbackQuery.id, env);
     return await showSettings(chatId, env, lang, messageId);
   }
@@ -261,7 +312,7 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
 
   if (data.startsWith('set_prog_lang_')) {
     const pl = data.replace('set_prog_lang_', '');
-    await setProgrammingLang(env, chatId, pl === 'none' ? null : pl);
+    await setProgrammingLang(env, chatId, pl === 'none' ? null : pl, userId);
     await answerCallback(callbackQuery.id, env);
     return await showSettings(chatId, env, lang, messageId);
   }
@@ -269,38 +320,38 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
   // --- Translation Mode Callbacks ---
 
   if (data === 'menu_translate') {
-    await setTranslatePending(env, chatId, null);
+    await setTranslatePending(env, chatId, null, userId);
     await answerCallback(callbackQuery.id, env);
     return await showTranslateModeMenu(chatId, env, lang, messageId);
   }
 
   if (data === 'translate_source') {
-    await setTranslatePending(env, chatId, 'source');
+    await setTranslatePending(env, chatId, 'source', userId);
     await answerCallback(callbackQuery.id, env);
     return await editMessage(chatId, messageId, t(lang, 'translate_mode_prompt_source'), env, 'Markdown', buildLanguageKeyboard('source', lang));
   }
 
   if (data === 'translate_target') {
-    await setTranslatePending(env, chatId, 'target');
+    await setTranslatePending(env, chatId, 'target', userId);
     await answerCallback(callbackQuery.id, env);
     return await editMessage(chatId, messageId, t(lang, 'translate_mode_prompt_target'), env, 'Markdown', buildLanguageKeyboard('target', lang));
   }
 
   if (data === 'translate_cancel') {
-    await setTranslateEnabled(env, chatId, 0);
-    await setTranslatePending(env, chatId, null);
+    await setTranslateEnabled(env, chatId, 0, userId);
+    await setTranslatePending(env, chatId, null, userId);
     await answerCallback(callbackQuery.id, env, '❌');
     return await showTranslateModeMenu(chatId, env, lang, messageId);
   }
 
   if (data === 'translate_activate') {
-    await setTranslatePending(env, chatId, null);
+    await setTranslatePending(env, chatId, null, userId);
     if (!settings.translate_target) {
       const src = getEffectiveSource(settings, lang);
       const tgt = !src || src === lang ? 'en' : lang;
-      await setTranslateTarget(env, chatId, tgt);
+      await setTranslateTarget(env, chatId, tgt, userId);
     }
-    await setTranslateEnabled(env, chatId, 1);
+    await setTranslateEnabled(env, chatId, 1, userId);
     await answerCallback(callbackQuery.id, env);
     return await showTranslateModeMenu(chatId, env, lang, messageId);
   }
@@ -309,11 +360,11 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
     const parts = data.split('_');
     const actionType = parts[2]; // 'source' or 'target'
     const code = parts.slice(3).join('_');
-    await setTranslatePending(env, chatId, null);
+    await setTranslatePending(env, chatId, null, userId);
     if (actionType === 'source') {
-      await setTranslateSource(env, chatId, code === 'auto' ? null : code);
+      await setTranslateSource(env, chatId, code === 'auto' ? null : code, userId);
     } else {
-      await setTranslateTarget(env, chatId, code);
+      await setTranslateTarget(env, chatId, code, userId);
     }
     await answerCallback(callbackQuery.id, env);
     return await showTranslateModeMenu(chatId, env, lang, messageId);

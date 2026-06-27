@@ -10,16 +10,17 @@ import {
   setTimezone, toggleDailyTips, getDailyTipsEnabled, getDailyTipsChats,
   createSession, getSessions,
   setEnsembleEnabled, setEnsembleModels, setEnsembleStrategy,
+  setActiveMode, setModeData, getModeState, clearModeState,
 } from '../repositories/settings.repo.ts';
 
-export async function getSettings(env: Env, chatId: number | string): Promise<SettingsRow> {
-  return repoGetSettings(env, chatId);
+export async function getSettings(env: Env, chatId: number | string, userId?: number): Promise<SettingsRow> {
+  return repoGetSettings(env, chatId, userId);
 }
 
 export async function updateSetting(
-  env: Env, chatId: number | string, field: string, value: string | number | null
+  env: Env, chatId: number | string, field: string, value: string | number | null, userId?: number
 ): Promise<void> {
-  const setters: Record<string, (env: Env, chatId: number | string, val: any) => Promise<void>> = {
+  const setters: Record<string, (env: Env, chatId: number | string, val: any, userId?: number) => Promise<void>> = {
     persona: setPersona,
     response_length: setResponseLength,
     ai_model: setAiModel,
@@ -37,10 +38,12 @@ export async function updateSetting(
     ensemble_enabled: setEnsembleEnabled,
     ensemble_models: setEnsembleModels,
     ensemble_strategy: setEnsembleStrategy,
+    active_mode: setActiveMode,
+    mode_data: setModeData,
   };
   const setter = setters[field];
   if (setter) {
-    await setter(env, chatId, value);
+    await setter(env, chatId, value, userId);
   }
 }
 
@@ -53,4 +56,5 @@ export {
   setTimezone, toggleDailyTips, getDailyTipsEnabled, getDailyTipsChats,
   createSession, getSessions,
   setEnsembleEnabled, setEnsembleModels, setEnsembleStrategy,
+  setActiveMode, setModeData, getModeState, clearModeState,
 };

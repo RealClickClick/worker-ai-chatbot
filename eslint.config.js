@@ -4,6 +4,7 @@ import js from '@eslint/js';
 export default [
   js.configs.recommended,
   {
+    files: ['**/*.js', '**/*.mjs', '**/*.cjs'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -24,7 +25,9 @@ export default [
       'no-useless-assignment': 'warn',
     },
   },
+  // Source .ts files are type-checked via `tsc --noEmit` (strict mode).
+  // To lint them with ESLint too, add @typescript-eslint/parser + plugin.
   {
-    ignores: ['dist/', 'node_modules/', '.wrangler/', 'src/', 'config/'],
+    ignores: ['dist/', 'node_modules/', '.wrangler/'],
   },
 ];

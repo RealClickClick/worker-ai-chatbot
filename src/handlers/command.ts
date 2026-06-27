@@ -22,9 +22,11 @@ import { handleNewPersona } from './persona.ts';
 import { handleDebateCommand, handleDebateHistory, handleDebateSaveTemplate, handleDebateListTemplates, handleDebateExport } from './debate.ts';
 import { handleDailyCommand } from './daily.ts';
 import { handleRemindCommand, handleRemindersList, handleCancelCommand, handleReminderMessage } from './reminder.ts';
+import { activateMode, deactivateMode } from '../modes/registry.ts';
+import { setModeData } from '../repositories/settings.repo.ts';
 import type { Env } from '../types/env.d.ts';
 
-export async function handleCommand(chatId: number | string, commandText: string, args: string, env: Env, lang: string, userName: string, settings: any = null): Promise<any> {
+export async function handleCommand(chatId: number | string, commandText: string, args: string, env: Env, lang: string, userName: string, settings: any = null, userId?: number): Promise<any> {
   if (commandText === '/image' || commandText === '/search') {
     const allowed = await checkRateLimit(env, chatId, 'expensive');
     if (!allowed) {
@@ -40,15 +42,27 @@ export async function handleCommand(chatId: number | string, commandText: string
   }
 
   switch (commandText) {
-    case '/start':
+    case '/start': {
       logger.info('Start command', { chatId, userName });
-      return await sendMessage(chatId, t(lang, 'start_glass', { user: userName }), env, 'Markdown', {
+      if (!settings) settings = await getSettings(env, chatId, userId);
+      const persona = (settings.persona || 'Standard').toUpperCase();
+      const model = t(lang, MODELS[settings.ai_model]?.label || 'model_fast');
+      const lengthLabel = t(lang, `length_${settings.response_length || 'short'}`);
+      return await sendMessage(chatId, t(lang, 'start_glass', { user: userName, persona, model, length: lengthLabel }), env, 'Markdown', {
         inline_keyboard: [
-          [{ text: t(lang, 'btn_personas'), callback_data: 'menu_mode' }],
-          [{ text: t(lang, 'btn_settings_icon'), callback_data: 'menu_settings' }],
-          [{ text: t(lang, 'btn_profile'), callback_data: 'profile' }]
+          [{ text: t(lang, 'btn_personas'), callback_data: 'menu_mode' },
+           { text: t(lang, 'btn_model'), callback_data: 'menu_model' }],
+          [{ text: t(lang, 'btn_settings_icon'), callback_data: 'menu_settings' },
+           { text: t(lang, 'btn_image'), callback_data: 'img_help' }],
+          [{ text: t(lang, 'btn_profile'), callback_data: 'profile' },
+           { text: t(lang, 'btn_help'), callback_data: 'help' }],
+          [{ text: t(lang, 'btn_search'), callback_data: 'search_help' },
+           { text: t(lang, 'btn_tts'), callback_data: 'tts_help' }],
+          [{ text: t(lang, 'btn_new_chat'), callback_data: 'new_chat' },
+           { text: t(lang, 'btn_clear'), callback_data: 'clear_memory' }]
         ]
       });
+    }
 
     case '/help':
       return await sendMessage(chatId, t(lang, 'help_message'), env, 'Markdown');
@@ -56,7 +70,7 @@ export async function handleCommand(chatId: number | string, commandText: string
     case '/image': {
       const validPrompt = validateImagePrompt(args);
       if (!validPrompt) return await sendMessage(chatId, t(lang, 'image_prompt_required'), env);
-      if (!settings) settings = await getSettings(env, chatId);
+      if (!settings) settings = await getSettings(env, chatId, userId);
       await sendChatAction(chatId, env, 'typing');
       await sendMessage(chatId, t(lang, 'enhancing_prompt'), env);
       const enhanced = await safe(() => enhancePrompt(env, validPrompt), 'enhancePrompt', validPrompt);
@@ -83,13 +97,31 @@ export async function handleCommand(chatId: number | string, commandText: string
       return await sendMessage(chatId, t(lang, 'search_added', { results: results.slice(0, MAX_SEARCH_RESULTS) }), env, 'Markdown');
 
     case '/translate':
-      return await handleTranslate(chatId, args, env, lang);
+      return await handleTranslate(chatId, args, env, lang, userId);
 
     case '/translatemode':
-      return await handleTranslateMode(chatId, args, env, lang, settings);
+      return await handleTranslateMode(chatId, args, env, lang, settings, userId);
 
     case '/mode':
       return await showModeMenu(chatId, env, lang);
+
+    case '/mode_exam': {
+      const msg = await activateMode('exam', env, chatId, 0, '', lang);
+      if (msg) await sendMessage(chatId, msg, env, 'Markdown');
+      return;
+    }
+
+    case '/mode_stop': {
+      if (!settings) settings = await getSettings(env, chatId, userId);
+      const activeMode = (settings as any).active_mode;
+      if (!activeMode) {
+        await sendMessage(chatId, 'No active mode to stop.', env);
+        return;
+      }
+      const deactMsg = await deactivateMode(env, chatId, 0, '', lang, activeMode);
+      if (deactMsg) await sendMessage(chatId, deactMsg, env, 'Markdown');
+      return;
+    }
 
     case '/model':
       return await showModelMenu(chatId, env, lang);
@@ -98,10 +130,10 @@ export async function handleCommand(chatId: number | string, commandText: string
       return await showLangMenu(chatId, env, lang);
 
     case '/instructions':
-      return await handleInstructions(chatId, args, env, lang);
+      return await handleInstructions(chatId, args, env, lang, userId);
 
     case '/setname':
-      return await handleSetName(chatId, args, env, lang);
+      return await handleSetName(chatId, args, env, lang, userId);
 
     case '/newpersona':
       return await handleNewPersona(chatId, args, env, lang);
@@ -110,13 +142,13 @@ export async function handleCommand(chatId: number | string, commandText: string
       return await handleSession(chatId, args, env, lang);
 
     case '/export':
-      return await handleExport(chatId, env, lang);
+      return await handleExport(chatId, env, lang, userId);
 
     case '/stats':
-      return await showStats(chatId, env, lang);
+      return await showStats(chatId, env, lang, userId);
 
     case '/summarize':
-      return await handleSummarize(chatId, env, lang);
+      return await handleSummarize(chatId, env, lang, userId);
 
     case '/gsum':
       return await handleGroupSummarize(chatId, env, lang, settings);
@@ -128,9 +160,9 @@ export async function handleCommand(chatId: number | string, commandText: string
       return await handleFeedback(chatId, args, env, lang);
 
     case '/incognito': {
-      const s = await getSettings(env, chatId);
+      const s = await getSettings(env, chatId, userId);
       const wasEnabled = s.memory_enabled;
-      await toggleMemory(env, chatId);
+      await toggleMemory(env, chatId, userId);
       const key = wasEnabled ? 'incognito_activated' : 'incognito_deactivated';
       return await sendMessage(chatId, t(lang, key), env, 'Markdown');
     }
@@ -192,8 +224,8 @@ export async function handleCommand(chatId: number | string, commandText: string
   }
 }
 
-async function showStats(chatId: number | string, env: Env, lang: string): Promise<void> {
-  const s = await getSettings(env, chatId);
+async function showStats(chatId: number | string, env: Env, lang: string, userId?: number): Promise<void> {
+  const s = await getSettings(env, chatId, userId);
   const persona = s.persona || 'Standard';
   const model = t(lang, MODELS[s.ai_model]?.label || 'model_fast');
   const lengthLabel = t(lang, `length_${s.response_length || 'short'}`);
@@ -204,7 +236,7 @@ async function showStats(chatId: number | string, env: Env, lang: string): Promi
   }), env, 'Markdown');
 }
 
-export async function showSettings(chatId: number | string, env: Env, lang: string, messageId: any = null): Promise<any> {
+export async function showSettings(chatId: number | string, env: Env, lang: string, messageId: any = null, userId?: number): Promise<any> {
   return await showSettingsMenu(chatId, env, lang, messageId);
 }
 
@@ -224,30 +256,30 @@ export async function showLangMenu(chatId: number | string, env: Env, lang: stri
   }
 }
 
-async function handleInstructions(chatId: number | string, args: string, env: Env, lang: string): Promise<any> {
+async function handleInstructions(chatId: number | string, args: string, env: Env, lang: string, userId?: number): Promise<any> {
   if (!args) return await sendMessage(chatId, t(lang, 'instructions_usage'), env);
   if (args.toLowerCase() === 'reset') {
-    await setCustomInstructions(env, chatId, null);
+    await setCustomInstructions(env, chatId, null, userId);
     return await sendMessage(chatId, t(lang, 'instructions_reset'), env);
   }
   const valid = validateInstructions(args);
   if (!valid) return await sendMessage(chatId, t(lang, 'instructions_usage'), env);
-  await setCustomInstructions(env, chatId, valid);
+  await setCustomInstructions(env, chatId, valid, userId);
   return await sendMessage(chatId, t(lang, 'instructions_set', { text: valid }), env);
 }
 
-async function handleSetName(chatId: number | string, args: string, env: Env, lang: string): Promise<any> {
+async function handleSetName(chatId: number | string, args: string, env: Env, lang: string, userId?: number): Promise<any> {
   if (!args) return await sendMessage(chatId, t(lang, 'setname_usage'), env);
   if (args.toLowerCase() === 'reset') {
-    await setBotName(env, chatId, null);
+    await setBotName(env, chatId, null, userId);
     return await sendMessage(chatId, t(lang, 'setname_reset'), env);
   }
   if (args.length > 50) return await sendMessage(chatId, t(lang, 'setname_usage'), env);
-  await setBotName(env, chatId, args);
+  await setBotName(env, chatId, args, userId);
   return await sendMessage(chatId, t(lang, 'setname_set', { name: args }), env);
 }
 
-async function handleTranslate(chatId: number | string, args: string, env: Env, lang: string): Promise<any> {
+async function handleTranslate(chatId: number | string, args: string, env: Env, lang: string, userId?: number): Promise<any> {
   if (!args) return await sendMessage(chatId, t(lang, 'translate_usage'), env);
   const spaceIdx = args.indexOf(' ');
   if (spaceIdx === -1) return await sendMessage(chatId, t(lang, 'translate_usage'), env);
@@ -264,8 +296,8 @@ async function handleTranslate(chatId: number | string, args: string, env: Env, 
   return await sendMessage(chatId, t(lang, 'translate_result', { lang: targetLang.toUpperCase(), result }), env, 'Markdown');
 }
 
-async function handleExport(chatId: number | string, env: Env, lang: string): Promise<void> {
-  const settings = await getSettings(env, chatId);
+async function handleExport(chatId: number | string, env: Env, lang: string, userId?: number): Promise<void> {
+  const settings = await getSettings(env, chatId, userId);
   const sessionId = settings.active_session || 'default';
   await sendMessage(chatId, t(lang, 'export_start'), env);
   const messages = await getAllChatMessages(env, chatId, sessionId);
@@ -279,9 +311,9 @@ async function handleExport(chatId: number | string, env: Env, lang: string): Pr
   await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendDocument`, { method: 'POST', body: formData });
 }
 
-async function handleSummarize(chatId: number | string, env: Env, lang: string): Promise<any> {
+async function handleSummarize(chatId: number | string, env: Env, lang: string, userId?: number): Promise<any> {
   await sendChatAction(chatId, env, 'typing');
-  const settings = await getSettings(env, chatId);
+  const settings = await getSettings(env, chatId, userId);
   const sessionId = settings.active_session || 'default';
   const history = settings.memory_enabled ? await getChatHistory(env, chatId, sessionId, 40) : [];
   if (history.length === 0) return await sendMessage(chatId, t(lang, 'summarize_empty'), env);
@@ -348,7 +380,7 @@ async function handleTopic(chatId: number | string, env: Env, lang: string, sett
   return await sendMessage(chatId, t(lang, 'topic_result', { topic }), env, 'Markdown');
 }
 
-async function handleTranslateMode(chatId: number | string, args: string, env: Env, lang: string, settings: any): Promise<any> {
+async function handleTranslateMode(chatId: number | string, args: string, env: Env, lang: string, settings: any, userId?: number): Promise<any> {
   const trimmed = args.trim().toLowerCase();
 
   if (!trimmed) {
@@ -356,16 +388,16 @@ async function handleTranslateMode(chatId: number | string, args: string, env: E
   }
 
   if (trimmed === 'off') {
-    await setTranslatePending(env, chatId, null);
-    await setTranslateEnabled(env, chatId, 0);
+    await setTranslatePending(env, chatId, null, userId);
+    await setTranslateEnabled(env, chatId, 0, userId);
     return await sendMessage(chatId, t(lang, 'translate_mode_title', { source: '—', target: '—' }), env, 'Markdown');
   }
 
   if (trimmed === 'on') {
     const src = getEffectiveSource(settings, lang) || lang;
     const tgt = src === lang ? 'en' : lang;
-    await setTranslateTarget(env, chatId, tgt);
-    await setTranslateEnabled(env, chatId, 1);
+    await setTranslateTarget(env, chatId, tgt, userId);
+    await setTranslateEnabled(env, chatId, 1, userId);
     const srcName = getLanguageDisplay(src, lang);
     const tgtName = getLanguageDisplay(tgt, lang);
     return await sendMessage(chatId, t(lang, 'translate_mode_title', { source: srcName, target: tgtName }), env, 'Markdown');
@@ -379,8 +411,8 @@ async function handleTranslateMode(chatId: number | string, args: string, env: E
     const srcMatch = matchLanguage(srcInput, lang);
     const tgtMatch = matchLanguage(tgtInput, lang);
     if (srcMatch && tgtMatch && srcMatch.code !== tgtMatch.code) {
-      await setTranslateSource(env, chatId, srcMatch.code);
-      await setTranslateTarget(env, chatId, tgtMatch.code);
+      await setTranslateSource(env, chatId, srcMatch.code, userId);
+      await setTranslateTarget(env, chatId, tgtMatch.code, userId);
       return await sendMessage(chatId, t(lang, 'translate_mode_title', { source: srcMatch.name, target: tgtMatch.name }), env, 'Markdown');
     }
   }
@@ -392,7 +424,7 @@ async function handleTranslateMode(chatId: number | string, args: string, env: E
     if (match.code === src) {
       return await sendMessage(chatId, t(lang, 'translate_mode_already', { source: match.name, target: match.name }), env, 'Markdown');
     }
-    await setTranslateTarget(env, chatId, match.code);
+    await setTranslateTarget(env, chatId, match.code, userId);
     const srcName = getLanguageDisplay(src, lang);
     return await sendMessage(chatId, t(lang, 'translate_mode_title', { source: srcName, target: match.name }), env, 'Markdown');
   }

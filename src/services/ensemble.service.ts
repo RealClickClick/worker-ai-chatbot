@@ -1,6 +1,6 @@
 import type { Env } from '../types/env.d.ts';
 import type { EnsembleResponse } from '../types/ai.ts';
-import { runChat } from '../ai.ts';
+import { runChat, getTokenLimit } from '../ai.ts';
 import { logger } from '../utils/logger.ts';
 
 const DEFAULT_ENSEMBLE_MODELS = ['fast', 'balanced', 'powerful'];
@@ -65,7 +65,11 @@ export async function runEnsemble(
 
   const results = await Promise.allSettled(
     modelKeys.map(async (modelKey) => {
-      const text = await runChat(env, messages, tokenLimit, modelKey);
+      const perModelLimit = getTokenLimit(
+        tokenLimit <= 600 ? 'short' : tokenLimit <= 1200 ? 'medium' : 'long',
+        { modelKey }
+      );
+      const text = await runChat(env, messages, perModelLimit, modelKey);
       return { modelKey, text } as EnsembleResponse;
     }),
   );

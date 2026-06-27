@@ -4,7 +4,7 @@ import { handleCallbackQuery } from './callback.ts';
 import { handleReminderMessage, handleCancelCommand } from './reminder.ts';
 import { handleInlineQuery } from './inline.ts';
 import { t, getLang, matchLanguage, getLanguageDisplay, getEffectiveSource, getEffectiveTarget, isTranslationActive } from '../locales.ts';
-import { buildSystemPrompt, buildGroupSystemPrompt, getLengthRule, getTokenLimit, runChatStreaming, runChat, cleanAIResponseText, buildReplyMarkup, MODELS } from '../ai.ts';
+import { buildSystemPrompt, buildGroupSystemPrompt, getLengthRule, getTokenLimit, runChatStreaming, runChat, cleanAIResponseText, buildReplyMarkup, MODELS, estimateCharLimit } from '../ai.ts';
 import { runEnsemble, parseEnsembleModels } from '../services/ensemble.service.ts';
 import { routeModel, logRouting } from '../services/router.service.ts';
 import { parseMarkdownToTelegramHTML } from '../parsers/htmlParser.ts';
@@ -24,6 +24,7 @@ import { isGroupChat, isBotMentioned, isReplyToBot, isCodeRequest, handlePhoto, 
 import { handleDebateMessage } from './debate.ts';
 import { safe } from '../utils/error.ts';
 import { registry } from '../plugins/registry.ts';
+import { handleModeMessageWithState } from '../modes/registry.ts';
 import type { Env, TelegramUpdate, TelegramMessage, UserSettings } from '../types/env.d.ts';
 import type { PluginContext } from '../plugins/types.ts';
 
@@ -74,7 +75,9 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
 
   if (await isBlocked(env, chatId)) return;
 
-  const settings = await getSettings(env, chatId);
+  const userId = message.from?.id;
+  const isGroup = isGroupChat(message);
+  const settings = await getSettings(env, chatId, isGroup ? userId : undefined);
   const lang = getLang(message.from, settings.lang, message.text || message.caption);
   const userName = message.from!.first_name || 'User';
   const sessionId = settings.active_session || 'default';
@@ -84,10 +87,9 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
 
   if (isGroupChat(message)) {
     const msgText = message.text || message.caption || '';
-    const isCmd = msgText.startsWith('/');
     const isMention = isBotMentioned(message, env);
     const isReply = isReplyToBot(message);
-    if (!isCmd && !isMention && !isReply) return;
+    if (!isMention && !isReply) return;
     if (isMention && msgText) {
       const cleaned = msgText.replace(/@\w+/g, '').trim();
       if (message.text) message.text = cleaned;
@@ -130,6 +132,18 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
   const rateTier = message.photo || message.document || message.voice ? 'expensive' : 'basic';
   if (!(await checkRateLimit(env, chatId, rateTier))) {
     return await sendMessage(chatId, t(lang, 'rate_limited'), env);
+  }
+
+  // --- Mode System ---
+  if (settings.active_mode) {
+    const modeCtx = { env, chatId, userId: message.from?.id || 0, userName, lang, modeData: settings.mode_data };
+    const modeResult = await handleModeMessageWithState(modeCtx, msgText, message, settings.active_mode);
+    if (modeResult?.consumed) {
+      if (modeResult.response) {
+        await sendMessage(chatId, modeResult.response, env, 'Markdown', modeResult.replyMarkup);
+      }
+      return;
+    }
   }
 
   let userMessage;
@@ -192,7 +206,8 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
       const translatePrompt = srcLang
         ? `Translate the following text from ${langNameAI(srcLang)} to ${langNameAI(tgtLang)}. Return ONLY the translated text, no explanations, no notes:\n\n${userMessage}`
         : `Detect the language of the following text and translate it to ${langNameAI(tgtLang)}. Return ONLY the translated text, no explanations, no notes:\n\n${userMessage}`;
-      const translated = await safe(() => runChat(env, [{ role: 'user', content: translatePrompt }], 500, 'fast'), 'translateModeMsg');
+      const translateTokens = getTokenLimit('medium', { modelKey: 'fast' });
+      const translated = await safe(() => runChat(env, [{ role: 'user', content: translatePrompt }], translateTokens, 'fast'), 'translateModeMsg');
       if (translated) {
         const actualSrc = srcLang || lang || 'en';
         contextAdditions += `\n[🌐 Translation Mode: User message translated to ${tgtLang.toUpperCase()}. Original: "${userMessage.slice(0, 200)}"]`;
@@ -207,12 +222,11 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
   if (userMessage.startsWith('/')) {
     const cmd = userMessage.split(' ')[0].toLowerCase();
     const args = userMessage.substring(cmd.length).trim();
-    if ((await handleCommand(chatId, cmd, args, env, lang, userName, settings)) !== null) return;
+    if ((await handleCommand(chatId, cmd, args, env, lang, userName, settings, isGroup ? userId : undefined)) !== null) return;
     if (!contextAdditions) return await sendMessage(chatId, t(lang, 'invalid_command'), env);
   }
 
   const isIncognito = !settings.memory_enabled;
-  const isGroup = isGroupChat(message);
   let tokenLimit = getTokenLimit(settings.response_length, { modelKey: settings.ai_model });
   let lengthRule = getLengthRule(settings.response_length, lang);
 
@@ -323,7 +337,8 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
           if (streamMsgId && Date.now() - lastEditTime > STREAM_INTERVAL) {
             lastEditTime = Date.now();
             const display = settings.formatting === 'plain' ? accumulatedText : parseMarkdownToTelegramHTML(accumulatedText);
-            await editMessage(chatId, streamMsgId, display.slice(0, MAX_MESSAGE_LENGTH), env, settings.formatting === 'plain' ? null : 'HTML').catch(() => {});
+            const truncated = display.length > MAX_MESSAGE_LENGTH ? display.slice(0, MAX_MESSAGE_LENGTH - 50) + '\n\n...' : display;
+            await editMessage(chatId, streamMsgId, truncated, env, settings.formatting === 'plain' ? null : 'HTML').catch(() => {});
           }
         }
       } catch (e: any) {
@@ -339,10 +354,11 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
       responseText = accumulatedText;
       setCachedResponse(activeModelKey, systemContent, chatHistory, accumulatedText);
       const trimmed = accumulatedText.trim();
-      const lastChar = trimmed.charAt(trimmed.length - 1);
-      const endsNaturally = /[.!?\n\r}\]"'`]/.test(lastChar) || trimmed.length < 50;
-      if (!endsNaturally && trimmed.length > tokenLimit * 2) {
-        logger.warn('Response may be truncated', { model: activeModelKey, tokenLimit, responseLength: trimmed.length, lastChar });
+      const expectedChars = estimateCharLimit(activeTokenLimit, activeModelKey);
+      const almostFull = trimmed.length >= expectedChars * 0.85;
+      const endsNaturally = /[.!?\n\r}\]"'`]/.test(trimmed.charAt(trimmed.length - 1)) || trimmed.length < 100;
+      if (almostFull && !endsNaturally) {
+        logger.warn('Response may be truncated', { model: activeModelKey, tokenLimit: activeTokenLimit, expectedChars, responseLength: trimmed.length });
       }
     }
   } else {
@@ -370,7 +386,8 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
     if (tgtLang && cleanText) {
       const langNameAI = (src: string) => ({ en: 'English', fa: 'Persian', ar: 'Arabic', tr: 'Turkish', ru: 'Russian', fr: 'French', de: 'German', es: 'Spanish', it: 'Italian', pt: 'Portuguese', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', hi: 'Hindi', ur: 'Urdu', nl: 'Dutch', sv: 'Swedish', pl: 'Polish', el: 'Greek', he: 'Hebrew', th: 'Thai', vi: 'Vietnamese' }[src] || src);
       const backPrompt = `Translate the following text from ${langNameAI(tgtLang)} to ${langNameAI(srcLang)}. Return ONLY the translated text, no explanations, no notes:\n\n${cleanText}`;
-      const backTranslated = await safe(() => runChat(env, [{ role: 'user', content: backPrompt }], 500, 'fast'), 'translateModeResp');
+      const backTranslateTokens = getTokenLimit('medium', { modelKey: 'fast' });
+      const backTranslated = await safe(() => runChat(env, [{ role: 'user', content: backPrompt }], backTranslateTokens, 'fast'), 'translateModeResp');
       if (backTranslated) {
         displayText = `${backTranslated}\n\n_${t(lang, 'translate_mode_response_from', { lang: getLanguageDisplay(tgtLang, lang) })}_`;
       }
@@ -413,7 +430,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
   const parseMode = settings.formatting === 'plain' ? null : 'HTML';
   const outputText = settings.formatting === 'plain' ? displayText : parseMarkdownToTelegramHTML(displayText);
   if (streamMsgId) {
-    await editMessage(chatId, streamMsgId, outputText, env, parseMode, buildReplyMarkup(lang, !!settings.feedback_enabled, translateActive));
+    if (outputText.length <= MAX_MESSAGE_LENGTH) {
+      await editMessage(chatId, streamMsgId, outputText, env, parseMode, buildReplyMarkup(lang, !!settings.feedback_enabled, translateActive));
+    } else {
+      await deleteMessage(chatId, streamMsgId, env);
+      await sendMessage(chatId, outputText, env, parseMode, buildReplyMarkup(lang, !!settings.feedback_enabled, translateActive), replyToMsgId);
+    }
   } else {
     await sendMessage(chatId, outputText, env, parseMode, buildReplyMarkup(lang, !!settings.feedback_enabled, translateActive), replyToMsgId);
   }

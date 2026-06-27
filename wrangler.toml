@@ -13,16 +13,19 @@ database_id = "your-d1-database-id-here"
 [ai]
 binding = "AI"
 
-# Public environment variables (can be in wrangler.toml)
+# Public environment variables (non-sensitive, can be hardcoded)
 [vars]
 WORKER_DOMAIN = "your-worker.your-subdomain.workers.dev"
-ADMIN_IDS = "your-telegram-user-id-here"
 
-# Set these via `npx wrangler secret put <NAME>`:
+# Set ALL secrets via `npx wrangler secret put <NAME>`:
 #   TELEGRAM_BOT_TOKEN  — Bot token from @BotFather (required)
-#   BRAVE_API_KEY       — API key for /search via Brave Search (optional)
 #   WEBHOOK_SECRET      — Secret token for webhook verification (recommended)
+#   BRAVE_API_KEY       — API key for /search via Brave Search (optional)
+#   GOOGLE_GEMINI_API_KEY — API key for Gemini models (optional)
 #   BOT_USERNAME        — Bot username WITHOUT @ (e.g. "MyBot") for group mention detection
+#   BOT_NAME            — Custom bot display name (optional)
+#   BOT_DESCRIPTION     — Custom bot description injected into system prompt (optional)
+#   ADMIN_IDS            — Comma-separated Telegram user IDs for admin access
 
 # Cron triggers:
 #   0 7 * * *    — Daily tips (7:00 AM UTC)

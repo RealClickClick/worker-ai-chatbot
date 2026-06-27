@@ -78,7 +78,7 @@ describe('AI Module', () => {
 
     it('returns long limit for long length', async () => {
       const { getTokenLimit } = await import('../../src/ai.js');
-      expect(getTokenLimit('long')).toBe(2500);
+      expect(getTokenLimit('long')).toBe(2000);
     });
 
     it('returns default for unknown length', async () => {
@@ -88,7 +88,7 @@ describe('AI Module', () => {
 
     it('applies balanced model bonus', async () => {
       const { getTokenLimit } = await import('../../src/ai.js');
-      expect(getTokenLimit('short', { modelKey: 'balanced' })).toBe(1300);
+      expect(getTokenLimit('short', { modelKey: 'balanced' })).toBe(1600);
     });
   });
 

@@ -119,19 +119,48 @@ export async function sendMessageWithId(chatId: number | string, text: string, e
 }
 
 export async function editMessage(chatId: number | string, messageId: number, text: string, env: Env, parseMode: string | null = null, replyMarkup: any = null): Promise<void> {
-  const payload: Record<string, any> = { chat_id: chatId, message_id: messageId, text: String(text).slice(0, MAX_MESSAGE_LENGTH) };
-  if (parseMode) payload.parse_mode = parseMode;
-  if (replyMarkup) payload.reply_markup = replyMarkup;
+  const strText = String(text);
+
+  if (strText.length <= MAX_MESSAGE_LENGTH) {
+    const payload: Record<string, any> = { chat_id: chatId, message_id: messageId, text: strText };
+    if (parseMode) payload.parse_mode = parseMode;
+    if (replyMarkup) payload.reply_markup = replyMarkup;
+
+    try {
+      const res = await call('editMessageText', payload, env);
+      if (!res.ok && parseMode) {
+        delete payload.parse_mode;
+        delete payload.reply_markup;
+        await call('editMessageText', payload, env);
+      }
+    } catch (e: any) {
+      logger.error('editMessage failed', { chatId, messageId, error: e.message });
+    }
+    return;
+  }
+
+  const chunks = splitLongText(strText);
+  const firstChunk = chunks[0];
+  const firstPayload: Record<string, any> = { chat_id: chatId, message_id: messageId, text: firstChunk };
+  if (parseMode) firstPayload.parse_mode = parseMode;
+  if (replyMarkup) firstPayload.reply_markup = replyMarkup;
 
   try {
-    const res = await call('editMessageText', payload, env);
+    const res = await call('editMessageText', firstPayload, env);
     if (!res.ok && parseMode) {
-      delete payload.parse_mode;
-      payload.text = String(text).slice(0, MAX_MESSAGE_LENGTH);
-      await call('editMessageText', payload, env);
+      delete firstPayload.parse_mode;
+      delete firstPayload.reply_markup;
+      await call('editMessageText', firstPayload, env);
     }
   } catch (e: any) {
-    logger.error('editMessage failed', { chatId, messageId, error: e.message });
+    logger.error('editMessage first chunk failed', { chatId, messageId, error: e.message });
+  }
+
+  for (let i = 1; i < chunks.length; i++) {
+    const chunkText = chunks[i];
+    await sendMessage(chatId, chunkText, env, parseMode, i === chunks.length - 1 ? replyMarkup : null).catch((e: any) => {
+      logger.error('editMessage continuation chunk failed', { chatId, chunk: i + 1, total: chunks.length, error: e.message });
+    });
   }
 }
 

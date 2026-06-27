@@ -8,12 +8,14 @@ import { processDueReminders } from './handlers/reminder.ts';
 import { logger, resetRequestId } from './utils/logger.ts';
 import { registry } from './plugins/registry.ts';
 import { examplePlugin } from './plugins/builtins/example.ts';
+import { initModes } from './modes/registry.ts';
 
 let dbInitialized = false;
 let pluginsInitialized = false;
 const workerStartTime = Date.now();
 
 registry.register(examplePlugin);
+initModes();
 
 function validateWebhookPayload(body: any): boolean {
   if (!body || typeof body !== 'object') return false;

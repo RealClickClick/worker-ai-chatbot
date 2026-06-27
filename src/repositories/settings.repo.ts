@@ -3,9 +3,9 @@ import type { SettingsRow, SessionRow } from '../types/d1.ts';
 import { logger } from '../utils/logger.ts';
 import { cacheGet, cacheSet, cacheDel, bumpCacheGen, CACHE_TTL } from './cache.ts';
 
-const DEFAULT: Readonly<SettingsRow> = Object.freeze({ persona: 'standard', response_length: 'short', ai_model: 'fast', lang: null, custom_instructions: null, bot_name: null, active_session: 'default', programming_lang: null, memory_enabled: 1, formatting: 'markdown', feedback_enabled: 1, img_model: 'sdxl', daily_tips_enabled: 0, timezone: 'UTC', translate_source: null, translate_target: null, translate_pending: null, translate_enabled: 0, ensemble_enabled: 0, ensemble_models: null, ensemble_strategy: 'judge' });
+const DEFAULT: Readonly<SettingsRow> = Object.freeze({ persona: 'standard', response_length: 'short', ai_model: 'fast', lang: null, custom_instructions: null, bot_name: null, active_session: 'default', programming_lang: null, memory_enabled: 1, formatting: 'markdown', feedback_enabled: 1, img_model: 'sdxl', daily_tips_enabled: 0, timezone: 'UTC', translate_source: null, translate_target: null, translate_pending: null, translate_enabled: 0, ensemble_enabled: 0, ensemble_models: null, ensemble_strategy: 'judge', active_mode: null, mode_data: null });
 
-const SETTING_COLS: string[] = ['persona', 'response_length', 'ai_model', 'lang', 'custom_instructions', 'bot_name', 'active_session', 'programming_lang', 'memory_enabled', 'formatting', 'feedback_enabled', 'img_model', 'daily_tips_enabled', 'timezone', 'translate_source', 'translate_target', 'translate_pending', 'translate_enabled', 'ensemble_enabled', 'ensemble_models', 'ensemble_strategy'];
+const SETTING_COLS: string[] = ['persona', 'response_length', 'ai_model', 'lang', 'custom_instructions', 'bot_name', 'active_session', 'programming_lang', 'memory_enabled', 'formatting', 'feedback_enabled', 'img_model', 'daily_tips_enabled', 'timezone', 'translate_source', 'translate_target', 'translate_pending', 'translate_enabled', 'ensemble_enabled', 'ensemble_models', 'ensemble_strategy', 'active_mode', 'mode_data'];
 
 // === Init / Migrations ===
 
@@ -314,6 +314,14 @@ const MIGRATIONS = [
       `ALTER TABLE debate_sessions ADD COLUMN roles_swapped INTEGER DEFAULT 0`,
     ],
   },
+  {
+    version: 21,
+    description: 'Add active_mode and mode_data columns for Mode System',
+    statements: [
+      `ALTER TABLE user_settings ADD COLUMN active_mode TEXT DEFAULT NULL`,
+      `ALTER TABLE user_settings ADD COLUMN mode_data TEXT DEFAULT NULL`,
+    ],
+  },
 ];
 
 export async function initDB(env: Env): Promise<void> {
@@ -365,27 +373,34 @@ export async function initDB(env: Env): Promise<void> {
 
 // === Settings ===
 
-export async function getSettings(env: Env, chatId: number | string): Promise<SettingsRow> {
+function settingsKey(chatId: number | string, userId?: number): string {
+  const key = String(chatId);
+  return (userId && key.startsWith('-')) ? `${key}:${userId}` : key;
+}
+
+export async function getSettings(env: Env, chatId: number | string, userId?: number): Promise<SettingsRow> {
   if (!env.DB) return { ...DEFAULT };
-  const cacheKey = `settings:${chatId}`;
+  const key = settingsKey(chatId, userId);
+  const cacheKey = `settings:${key}`;
   const cached = cacheGet<SettingsRow>(cacheKey);
   if (cached) return cached;
   try {
     const row = await env.DB.prepare(
-      'SELECT persona, response_length, ai_model, lang, custom_instructions, bot_name, active_session, programming_lang, memory_enabled, formatting, feedback_enabled, img_model, daily_tips_enabled, timezone, translate_source, translate_target, translate_pending, translate_enabled, ensemble_enabled, ensemble_models, ensemble_strategy FROM user_settings WHERE chat_id = ?'
-    ).bind(String(chatId)).first<SettingsRow | null>();
+      'SELECT persona, response_length, ai_model, lang, custom_instructions, bot_name, active_session, programming_lang, memory_enabled, formatting, feedback_enabled, img_model, daily_tips_enabled, timezone, translate_source, translate_target, translate_pending, translate_enabled, ensemble_enabled, ensemble_models, ensemble_strategy, active_mode, mode_data FROM user_settings WHERE chat_id = ?'
+    ).bind(key).first<SettingsRow | null>();
     const result: SettingsRow = row ? { ...DEFAULT, ...row } : { ...DEFAULT };
     cacheSet<SettingsRow>(cacheKey, result, CACHE_TTL.settings);
     return result;
   } catch (e: any) {
-    logger.error('DB getSettings error', { chatId, error: e.message });
+    logger.error('DB getSettings error', { chatId, userId, error: e.message });
     return { ...DEFAULT };
   }
 }
 
-async function upsertSetting(env: Env, chatId: number | string, field: string, value: string | number | null): Promise<void> {
+async function upsertSetting(env: Env, chatId: number | string, field: string, value: string | number | null, userId?: number): Promise<void> {
   if (!env.DB) return;
-  const current = await getSettings(env, chatId);
+  const key = settingsKey(chatId, userId);
+  const current = await getSettings(env, chatId, userId);
   const placeholders = SETTING_COLS.map(() => '?').join(', ');
   const insertCols = SETTING_COLS.join(', ');
   const vals: Record<string, unknown> = { ...current };
@@ -395,64 +410,74 @@ async function upsertSetting(env: Env, chatId: number | string, field: string, v
       `INSERT INTO user_settings (chat_id, ${insertCols})
        VALUES (?, ${placeholders})
        ON CONFLICT(chat_id) DO UPDATE SET ${field} = excluded.${field}`
-    ).bind(String(chatId), ...SETTING_COLS.map(c => vals[c])).run();
-    cacheDel(`settings:${chatId}`);
+    ).bind(key, ...SETTING_COLS.map(c => vals[c])).run();
+    cacheDel(`settings:${key}`);
     bumpCacheGen();
-  } catch (e: any) { logger.error('DB upsertSetting error', { chatId, field, error: e.message }); }
+  } catch (e: any) { logger.error('DB upsertSetting error', { chatId, userId, field, error: e.message }); }
 }
 
-export async function setPersona(env: Env, chatId: number | string, persona: string): Promise<void> { await upsertSetting(env, chatId, 'persona', persona); }
-export async function setResponseLength(env: Env, chatId: number | string, length: string): Promise<void> { await upsertSetting(env, chatId, 'response_length', length); }
-export async function setAiModel(env: Env, chatId: number | string, model: string): Promise<void> { await upsertSetting(env, chatId, 'ai_model', model); }
-export async function setImgModel(env: Env, chatId: number | string, model: string): Promise<void> { await upsertSetting(env, chatId, 'img_model', model); }
-export async function setLanguage(env: Env, chatId: number | string, lang: string | null): Promise<void> { await upsertSetting(env, chatId, 'lang', lang); }
-export async function setTranslateSource(env: Env, chatId: number | string, source: string | null): Promise<void> { await upsertSetting(env, chatId, 'translate_source', source); }
-export async function setTranslateTarget(env: Env, chatId: number | string, target: string | null): Promise<void> { await upsertSetting(env, chatId, 'translate_target', target); }
-export async function setTranslatePending(env: Env, chatId: number | string, pending: string | null): Promise<void> { await upsertSetting(env, chatId, 'translate_pending', pending); }
-export async function setTranslateEnabled(env: Env, chatId: number | string, enabled: number): Promise<void> { await upsertSetting(env, chatId, 'translate_enabled', enabled); }
-export async function setCustomInstructions(env: Env, chatId: number | string, instructions: string | null): Promise<void> { await upsertSetting(env, chatId, 'custom_instructions', instructions); }
-export async function setBotName(env: Env, chatId: number | string, name: string | null): Promise<void> { await upsertSetting(env, chatId, 'bot_name', name); }
-export async function setEnsembleEnabled(env: Env, chatId: number | string, enabled: number): Promise<void> { await upsertSetting(env, chatId, 'ensemble_enabled', enabled); }
-export async function setEnsembleModels(env: Env, chatId: number | string, models: string | null): Promise<void> { await upsertSetting(env, chatId, 'ensemble_models', models); }
-export async function setEnsembleStrategy(env: Env, chatId: number | string, strategy: string): Promise<void> { await upsertSetting(env, chatId, 'ensemble_strategy', strategy); }
-export async function setActiveSession(env: Env, chatId: number | string, sessionId: string): Promise<void> { await upsertSetting(env, chatId, 'active_session', sessionId); }
-export async function setProgrammingLang(env: Env, chatId: number | string, lang: string | null): Promise<void> { await upsertSetting(env, chatId, 'programming_lang', lang); }
-export async function toggleMemory(env: Env, chatId: number | string): Promise<void> {
-  const s = await getSettings(env, chatId);
-  await upsertSetting(env, chatId, 'memory_enabled', s.memory_enabled ? 0 : 1);
+export async function setPersona(env: Env, chatId: number | string, persona: string, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'persona', persona, userId); }
+export async function setResponseLength(env: Env, chatId: number | string, length: string, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'response_length', length, userId); }
+export async function setAiModel(env: Env, chatId: number | string, model: string, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'ai_model', model, userId); }
+export async function setImgModel(env: Env, chatId: number | string, model: string, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'img_model', model, userId); }
+export async function setLanguage(env: Env, chatId: number | string, lang: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'lang', lang, userId); }
+export async function setTranslateSource(env: Env, chatId: number | string, source: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'translate_source', source, userId); }
+export async function setTranslateTarget(env: Env, chatId: number | string, target: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'translate_target', target, userId); }
+export async function setTranslatePending(env: Env, chatId: number | string, pending: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'translate_pending', pending, userId); }
+export async function setTranslateEnabled(env: Env, chatId: number | string, enabled: number, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'translate_enabled', enabled, userId); }
+export async function setCustomInstructions(env: Env, chatId: number | string, instructions: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'custom_instructions', instructions, userId); }
+export async function setBotName(env: Env, chatId: number | string, name: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'bot_name', name, userId); }
+export async function setEnsembleEnabled(env: Env, chatId: number | string, enabled: number, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'ensemble_enabled', enabled, userId); }
+export async function setEnsembleModels(env: Env, chatId: number | string, models: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'ensemble_models', models, userId); }
+export async function setEnsembleStrategy(env: Env, chatId: number | string, strategy: string, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'ensemble_strategy', strategy, userId); }
+export async function setActiveSession(env: Env, chatId: number | string, sessionId: string, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'active_session', sessionId, userId); }
+export async function setProgrammingLang(env: Env, chatId: number | string, lang: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'programming_lang', lang, userId); }
+export async function setActiveMode(env: Env, chatId: number | string, mode: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'active_mode', mode, userId); }
+export async function setModeData(env: Env, chatId: number | string, data: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'mode_data', data, userId); }
+export async function getModeState(env: Env, chatId: number | string, userId?: number): Promise<{ active_mode: string | null; mode_data: string | null }> {
+  const s = await getSettings(env, chatId, userId);
+  return { active_mode: s.active_mode, mode_data: s.mode_data };
 }
-export async function toggleFormatting(env: Env, chatId: number | string): Promise<void> {
-  const s = await getSettings(env, chatId);
-  await upsertSetting(env, chatId, 'formatting', s.formatting === 'markdown' ? 'plain' : 'markdown');
+export async function clearModeState(env: Env, chatId: number | string, userId?: number): Promise<void> {
+  await setActiveMode(env, chatId, null, userId);
+  await setModeData(env, chatId, null, userId);
 }
-export async function toggleFeedback(env: Env, chatId: number | string): Promise<void> {
-  const s = await getSettings(env, chatId);
-  await upsertSetting(env, chatId, 'feedback_enabled', s.feedback_enabled ? 0 : 1);
+export async function toggleMemory(env: Env, chatId: number | string, userId?: number): Promise<void> {
+  const s = await getSettings(env, chatId, userId);
+  await upsertSetting(env, chatId, 'memory_enabled', s.memory_enabled ? 0 : 1, userId);
 }
-export async function toggleResponseLength(env: Env, chatId: number | string): Promise<string> {
+export async function toggleFormatting(env: Env, chatId: number | string, userId?: number): Promise<void> {
+  const s = await getSettings(env, chatId, userId);
+  await upsertSetting(env, chatId, 'formatting', s.formatting === 'markdown' ? 'plain' : 'markdown', userId);
+}
+export async function toggleFeedback(env: Env, chatId: number | string, userId?: number): Promise<void> {
+  const s = await getSettings(env, chatId, userId);
+  await upsertSetting(env, chatId, 'feedback_enabled', s.feedback_enabled ? 0 : 1, userId);
+}
+export async function toggleResponseLength(env: Env, chatId: number | string, userId?: number): Promise<string> {
   if (!env.DB) return 'short';
-  const s = await getSettings(env, chatId);
+  const s = await getSettings(env, chatId, userId);
   const current = s.response_length || 'short';
   const next = current === 'short' ? 'medium' : current === 'medium' ? 'long' : 'short';
-  await setResponseLength(env, chatId, next);
+  await setResponseLength(env, chatId, next, userId);
   return next;
 }
 
 // === Timezone & Daily Tips ===
 
-export async function setTimezone(env: Env, chatId: number | string, timezone: string): Promise<void> {
-  await upsertSetting(env, chatId, 'timezone', timezone);
+export async function setTimezone(env: Env, chatId: number | string, timezone: string, userId?: number): Promise<void> {
+  await upsertSetting(env, chatId, 'timezone', timezone, userId);
 }
 
-export async function toggleDailyTips(env: Env, chatId: number | string): Promise<boolean> {
-  const current = await getSettings(env, chatId);
+export async function toggleDailyTips(env: Env, chatId: number | string, userId?: number): Promise<boolean> {
+  const current = await getSettings(env, chatId, userId);
   const newVal = (current as any).daily_tips_enabled ? 0 : 1;
-  await upsertSetting(env, chatId, 'daily_tips_enabled', newVal);
+  await upsertSetting(env, chatId, 'daily_tips_enabled', newVal, userId);
   return newVal === 1;
 }
 
-export async function getDailyTipsEnabled(env: Env, chatId: number | string): Promise<boolean> {
-  const settings = await getSettings(env, chatId);
+export async function getDailyTipsEnabled(env: Env, chatId: number | string, userId?: number): Promise<boolean> {
+  const settings = await getSettings(env, chatId, userId);
   return !!(settings as any).daily_tips_enabled;
 }
 

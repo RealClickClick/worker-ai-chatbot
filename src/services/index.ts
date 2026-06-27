@@ -9,6 +9,7 @@ export {
   toggleMemory, toggleFormatting, toggleFeedback, toggleResponseLength,
   setTimezone, toggleDailyTips, getDailyTipsEnabled,
   createSession, getSessions,
+  setActiveMode, setModeData, getModeState, clearModeState,
 } from '../repositories/settings.repo.ts';
 
 export {

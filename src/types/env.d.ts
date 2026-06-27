@@ -152,6 +152,8 @@ export interface UserSettings {
   ensemble_enabled?: number;
   ensemble_models?: string | null;
   ensemble_strategy?: string;
+  active_mode?: string | null;
+  mode_data?: string | null;
 }
 
 export interface D1Result<T> {

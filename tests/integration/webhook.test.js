@@ -32,7 +32,7 @@ describe('Webhook Flow (Integration)', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.status).toBe('ok');
-    expect(body.version).toBe('2.1.0');
+    expect(body.version).toBe('2.2.0');
     expect(body.uptime).toBeGreaterThanOrEqual(0);
   });
 

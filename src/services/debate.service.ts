@@ -1,7 +1,7 @@
 import { sendMessage, sendMessageWithId, editMessage } from '../telegram.ts';
 import { t } from '../locales.ts';
 import { runChat, cleanAIResponseText } from '../ai.ts';
-import { MAX_MESSAGE_LENGTH, TOKEN_LIMIT_MEDIUM, DEBATE_TOKEN_LIMIT, DEBATE_AI_TIMEOUT, DEBATE_HISTORY_TRUNCATE } from '../constants.ts';
+import { MAX_MESSAGE_LENGTH, TOKEN_LIMIT_MEDIUM, DEBATE_TOKEN_LIMIT, DEBATE_AI_TIMEOUT, JUDGE_AI_TIMEOUT, DEBATE_HISTORY_TRUNCATE } from '../constants.ts';
 import { getActiveDebateSession, createDebateSession, updateDebateSession, getDebateSession, 
 getDebateMessages, addDebateMessage, deleteDebateRoundMessages, deleteDebateRoundPersonaMessage } from './index.ts';
 import { logger } from '../utils/logger.ts';
@@ -143,7 +143,7 @@ async function runJudgeRound(env: Env, sessionId: number, chatId: number | strin
           { role: 'system', content: judgeSystem },
           { role: 'user', content: `Round ${roundNumber} arguments:\n\n${judgeInput}` }
         ], DEBATE_TOKEN_LIMIT, 'fast'),
-        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Judge timed out')), DEBATE_AI_TIMEOUT)),
+        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Judge timed out')), JUDGE_AI_TIMEOUT)),
       ]);
       logger.info('Judge round AI done', { sessionId, round: roundNumber, feedbackLen: judgeFeedback.length });
     } catch (e: any) {
@@ -252,7 +252,9 @@ export async function runDebateRound(env: Env, chatId: number | string, sessionI
   await updateDebateSession(env, sessionId, { current_round: roundNumber });
   let roundText = isLastRound ? '' : `━━━━━━━━━━━━━━━━\n🎭 *${topic}* — Round ${roundNumber}/${totalRounds}\n━━━━━━━━━━━━━━━━\n\n`;
 
-  for (const [persona, role] of [[p1, role1], [p2, role2]] as [string, string][]) {
+  const rolesList = [[p1, role1], [p2, role2]] as [string, string][];
+
+  for (const [persona, role] of rolesList) {
     if (session.participant_persona && persona === session.participant_persona) {
       const emoji = getPersonaEmoji(persona);
       roundText += `\n${emoji} *${persona}* (${role})\n`;
@@ -265,23 +267,31 @@ export async function runDebateRound(env: Env, chatId: number | string, sessionI
       await sendMessage(chatId, prompt, env);
       return;
     }
+  }
 
-    const history = await getDebateMessages(env, sessionId);
+  const history = await getDebateMessages(env, sessionId);
+  const aiResults = await Promise.all(rolesList.map(async ([persona, role]) => {
+    const result = await generateAITurn(env, sessionId, persona, role, lang, topic, style, roundNumber, totalRounds, history, p1!, p2!);
+    return { persona, role, result };
+  }));
+
+  let personaAllFailed = true;
+  for (const { persona, role, result } of aiResults) {
     const emoji = getPersonaEmoji(persona);
     roundText += `\n${emoji} *${persona}* (${role})\n`;
     if (debateMsg) {
       await editMessage(chatId, debateMsg, roundText.trim(), env, 'Markdown').catch(() => {});
     }
 
-    let accumulated = '';
+    let cleanText;
     let personaFailed = false;
-    accumulated = await generateAITurn(env, sessionId, persona, role, lang, topic, style, roundNumber, totalRounds, history, p1!, p2!);
-    if (!accumulated) {
-      accumulated = '*[No response from AI]*';
+    if (!result) {
+      cleanText = '*[No response from AI]*';
       personaFailed = true;
+    } else {
+      personaAllFailed = false;
+      cleanText = cleanPersonaResponse(result, persona);
     }
-
-    let cleanText = cleanPersonaResponse(accumulated, persona);
     roundText += cleanText + '\n';
     if (debateMsg) {
       await editMessage(chatId, debateMsg, roundText.slice(0, MAX_MESSAGE_LENGTH), env, 'Markdown').catch(() => {});
@@ -298,6 +308,8 @@ export async function runDebateRound(env: Env, chatId: number | string, sessionI
       return;
     }
   }
+
+  if (personaAllFailed) return;
 
   await updateDebateSession(env, sessionId, { setup_step: 'active' });
 

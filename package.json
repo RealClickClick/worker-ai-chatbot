@@ -1,6 +1,6 @@
 {
   "name": "ai-telegram-bot",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "A feature-rich Telegram AI bot powered by Cloudflare Workers AI — supports 24 personas, image generation, file reading, web browsing, and bilingual English/Persian interface.",
   "type": "module",
   "main": "src/index.js",

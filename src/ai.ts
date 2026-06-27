@@ -1,7 +1,8 @@
 import type { Env } from './types/env.d.ts';
 import { PERSONAS, PERSONA_LABELS } from '../config/personas.ts';
 import { t } from './locales.ts';
-import { TOKEN_LIMIT_SHORT, TOKEN_LIMIT_MEDIUM, TOKEN_LIMIT_LONG, TOKEN_LIMIT_BALANCED_BONUS, VISION_MAX_TOKENS } from './constants.ts';
+import { TOKEN_LIMIT_BALANCED_BONUS, VISION_MAX_TOKENS, TOKEN_LIMIT_CODE_BOOST } from './constants.ts';
+import { getModelLimits, getTemperature } from './model-config.ts';
 import { retry, AIError } from './utils/error.ts';
 import { getCachedSearch, setCachedSearch } from './utils/cache.ts';
 import { logger } from './utils/logger.ts';
@@ -106,16 +107,28 @@ export function getLengthRule(length: string, lang: string): string {
 }
 
 export function getTokenLimit(length: string, { modelKey }: { modelKey?: string } = {}): number {
-  const isGoogleModel = modelKey?.startsWith('gemini');
-  let base;
+  const limits = getModelLimits(modelKey || 'fast');
+  let base: number;
   switch (length) {
-    case 'short':  base = isGoogleModel ? TOKEN_LIMIT_MEDIUM : TOKEN_LIMIT_SHORT;  break;
-    case 'medium': base = TOKEN_LIMIT_MEDIUM;  break;
-    case 'long':   base = TOKEN_LIMIT_LONG; break;
-    default:       base = isGoogleModel ? TOKEN_LIMIT_MEDIUM : TOKEN_LIMIT_SHORT;
+    case 'short':  base = limits.short;  break;
+    case 'medium': base = limits.medium; break;
+    case 'long':   base = limits.long;   break;
+    default:       base = limits.short;
   }
   if (modelKey === 'balanced') base += TOKEN_LIMIT_BALANCED_BONUS;
   return base;
+}
+
+export function estimateCharLimit(tokenLimit: number, modelKey: string): number {
+  const isMultiLang = modelKey.startsWith('gemini') || modelKey === 'balanced' || modelKey === 'powerful';
+  const charsPerToken = isMultiLang ? 5 : 4;
+  return tokenLimit * charsPerToken;
+}
+
+function isTruncatedFinishReason(finishReason: string | null): boolean {
+  if (!finishReason) return false;
+  const fr = finishReason.toLowerCase();
+  return fr === 'length' || fr === 'max_tokens' || fr === 'safety' || fr === 'recitation' || fr === 'content_filtered';
 }
 
 function getFinishReason(response: any): string | null {
@@ -136,6 +149,34 @@ export function extractText(response: any): string | null {
     return response.choices[0].message?.content ?? response.choices[0].text ?? null;
   }
   return null;
+}
+
+async function geminiFetch(env: Env, modelName: string, body: any, maxTokens: number, originalMessages: any[]): Promise<string> {
+  const apiKey = env.GOOGLE_GEMINI_API_KEY || '';
+  if (!apiKey) throw new AIError('GOOGLE_GEMINI_API_KEY not set');
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) },
+  );
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new AIError(`Gemini API error (${res.status}): ${errText}`);
+  }
+  const data = await res.json() as any;
+  const finishReason = data?.candidates?.[0]?.finishReason;
+  const safetyRatings = data?.candidates?.[0]?.safetyRatings;
+  const usage = data?.usageMetadata;
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  if (text === null || text === undefined) throw new AIError('Empty Gemini response');
+
+  if (isTruncatedFinishReason(finishReason)) {
+    logger.warn('Gemini response truncated, retrying with more tokens', { model: modelName, finishReason, maxTokens });
+    const continuationMessages = [...originalMessages, { role: 'assistant', content: text }, { role: 'user', content: 'Continue from where you left off. Do not repeat what you already wrote.' }];
+    const newMaxTokens = Math.min(maxTokens * 2, 8192);
+    return text + '\n\n' + await runGoogleGeminiChat(env, continuationMessages, newMaxTokens, modelName);
+  }
+
+  return text;
 }
 
 export async function runGoogleGeminiChat(env: Env, messages: any[], maxTokens: number, modelName: string): Promise<string> {
@@ -162,24 +203,7 @@ export async function runGoogleGeminiChat(env: Env, messages: any[], maxTokens: 
   if (systemInstruction) body.systemInstruction = systemInstruction;
 
   return retry(async () => {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) },
-    );
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new AIError(`Gemini API error (${res.status}): ${errText}`);
-    }
-    const data = await res.json() as any;
-    const finishReason = data?.candidates?.[0]?.finishReason;
-    const safetyRatings = data?.candidates?.[0]?.safetyRatings;
-    const usage = data?.usageMetadata;
-    if (finishReason && finishReason !== 'STOP') {
-      logger.warn('Gemini response incomplete', { model: modelName, finishReason, safetyRatings, usage });
-    }
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-    if (text === null || text === undefined) throw new AIError('Empty Gemini response');
-    return text;
+    return geminiFetch(env, modelName, body, maxTokens, messages);
   }, { ctx: `runGoogleGeminiChat:${modelName}` });
 }
 
@@ -205,14 +229,21 @@ export async function runChat(env: Env, messages: any[], maxTokens: number, mode
   if (modelKey === 'glm' && messages[0]?.role === 'system') {
     messages = [{ role: 'user', content: messages[0].content }, ...messages.slice(1)];
   }
+  const temperature = getTemperature(modelKey);
+
   return retry(async () => {
-    const res = await env.AI.run(model.id, { max_tokens: maxTokens, temperature: 0.7, messages }) as any;
+    const res = await env.AI.run(model.id, { max_tokens: maxTokens, temperature, messages }) as any;
     const finishReason = getFinishReason(res);
-    if (finishReason && finishReason !== 'stop' && finishReason !== 'end_turn') {
-      logger.warn('AI response may be incomplete', { model: modelKey, finishReason, maxTokens });
-    }
     const text = extractText(res);
     if (text === null || text === undefined) throw new AIError('Empty AI response');
+
+    if (isTruncatedFinishReason(finishReason)) {
+      logger.warn('AI response truncated, continuing', { model: modelKey, finishReason, maxTokens });
+      const continuationMessages = [...messages, { role: 'assistant', content: text }, { role: 'user', content: 'Continue from where you left off. Do not repeat what you already wrote.' }];
+      const newMaxTokens = Math.min(maxTokens * 2, 8192);
+      return text + '\n\n' + await runChat(env, continuationMessages, newMaxTokens, modelKey);
+    }
+
     return text || '';
   }, { ctx: `runChat:${modelKey}` });
 }
@@ -221,50 +252,166 @@ export async function* runGoogleGeminiChatStreaming(env: Env, messages: any[], m
   const apiKey = env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey) throw new AIError('GOOGLE_GEMINI_API_KEY not set');
 
-  let systemInstruction: any = undefined;
-  let contents = messages;
-  if (messages[0]?.role === 'system') {
-    systemInstruction = { parts: [{ text: messages[0].content }] };
-    contents = messages.slice(1);
-  }
-  const geminiContents = contents.map((m: any) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-  const body: any = {
-    contents: geminiContents,
-    generationConfig: { maxOutputTokens: maxTokens },
-  };
-  if (systemInstruction) body.systemInstruction = systemInstruction;
+  const MAX_CONTINUATION_DEPTH = 3;
+  let continuationDepth = 0;
+  let accumulatedText = '';
+  let lastFinishReason: string | null = null;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) },
-  );
-  if (!res.ok) throw new AIError(`Gemini streaming API error (${res.status})`);
+  while (continuationDepth <= MAX_CONTINUATION_DEPTH) {
+    let systemInstruction: any = undefined;
+    let contents = continuationDepth === 0 ? messages : [...messages, { role: 'assistant', content: accumulatedText }, { role: 'user', content: 'Continue from where you left off. Do not repeat what you already wrote.' }];
+    if (contents[0]?.role === 'system') {
+      systemInstruction = { parts: [{ text: contents[0].content }] };
+      contents = contents.slice(1);
+    }
+    const geminiContents = contents.map((m: any) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+    const currentMaxTokens = continuationDepth === 0 ? maxTokens : Math.min(maxTokens * (1 + continuationDepth), 8192);
+    const body: any = {
+      contents: geminiContents,
+      generationConfig: { maxOutputTokens: currentMaxTokens },
+    };
+    if (systemInstruction) body.systemInstruction = systemInstruction;
 
-  const reader = res.body?.getReader();
-  if (!reader) throw new AIError('No response body');
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) },
+    );
+    if (!res.ok) throw new AIError(`Gemini streaming API error (${res.status})`);
 
-  const decoder = new TextDecoder();
-  let buffer = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') return;
-        try {
-          const parsed = JSON.parse(data);
-          const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) yield text;
-        } catch { }
+    const reader = res.body?.getReader();
+    if (!reader) throw new AIError('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let foundTruncation = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) yield text;
+            accumulatedText += text || '';
+            const fr = parsed?.candidates?.[0]?.finishReason;
+            if (fr) lastFinishReason = fr;
+          } catch { }
+        }
       }
     }
+
+    if (isTruncatedFinishReason(lastFinishReason) && continuationDepth < MAX_CONTINUATION_DEPTH) {
+      logger.warn('Gemini stream truncated, continuing', { model: modelName, finishReason: lastFinishReason, continuationDepth });
+      foundTruncation = true;
+      continuationDepth++;
+    }
+
+    if (!foundTruncation) break;
+  }
+
+  if (isTruncatedFinishReason(lastFinishReason)) {
+    yield `\n\n_[⚠️ The response was truncated due to token limit. Please switch to a longer response length setting or consider using a more capable model.]_`;
+  }
+}
+
+async function* streamWithContinuation(
+  env: Env,
+  messages: any[],
+  maxTokens: number,
+  modelKey: string,
+  modelId: string,
+): AsyncGenerator<string> {
+  const temperature = getTemperature(modelKey);
+
+  let accumulatedText = '';
+  let lastFinishReason: string | null = null;
+
+  const MAX_CONTINUATION_DEPTH = 3;
+  let continuationDepth = 0;
+
+  while (continuationDepth <= MAX_CONTINUATION_DEPTH) {
+    const currentMessages = continuationDepth === 0
+      ? messages
+      : [...messages, { role: 'assistant', content: accumulatedText }, { role: 'user', content: 'Continue from where you left off. Do not repeat what you already wrote.' }];
+
+    const currentMaxTokens = continuationDepth === 0 ? maxTokens : Math.min(maxTokens * (1 + continuationDepth), 8192);
+
+    const res = await env.AI.run(modelId, { stream: true, max_tokens: currentMaxTokens, temperature, messages: currentMessages }) as any;
+    let foundTruncation = false;
+
+    if (res instanceof ReadableStream) {
+      const reader = res.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              const text = parsed?.response || parsed?.choices?.[0]?.delta?.content || '';
+              if (text) yield text;
+              accumulatedText += text;
+              const fr = parsed?.usage?.finish_reason || parsed?.choices?.[0]?.finish_reason || parsed?.choices?.[0]?.stop_reason || null;
+              if (fr) lastFinishReason = String(fr).toLowerCase();
+            } catch { }
+          }
+        }
+      }
+      if (buffer.startsWith('data: ')) {
+        const data = buffer.slice(6).trim();
+        if (data !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(data);
+            const text = parsed?.response || parsed?.choices?.[0]?.delta?.content || '';
+            if (text) yield text;
+            accumulatedText += text;
+            const fr = parsed?.usage?.finish_reason || parsed?.choices?.[0]?.finish_reason || null;
+            if (fr) lastFinishReason = String(fr).toLowerCase();
+          } catch { }
+        }
+      }
+    } else if (res?.[Symbol.asyncIterator]) {
+      for await (const chunk of res) {
+        const text = chunk?.response || chunk?.choices?.[0]?.delta?.content || '';
+        if (text) yield text;
+        accumulatedText += text;
+        const fr = chunk?.usage?.finish_reason || chunk?.choices?.[0]?.finish_reason || null;
+        if (fr) lastFinishReason = String(fr).toLowerCase();
+      }
+    } else {
+      const text = extractText(res);
+      if (text) yield text;
+      accumulatedText += text;
+    }
+
+    if (isTruncatedFinishReason(lastFinishReason) && continuationDepth < MAX_CONTINUATION_DEPTH) {
+      logger.warn('Stream response truncated, continuing', { model: modelKey, finishReason: lastFinishReason, continuationDepth });
+      foundTruncation = true;
+      continuationDepth++;
+    }
+
+    if (!foundTruncation) break;
+  }
+
+  if (isTruncatedFinishReason(lastFinishReason)) {
+    yield `\n\n_[⚠️ The response was truncated due to token limit. Please switch to a longer response length setting or consider using a more capable model.]_`;
   }
 }
 
@@ -289,53 +436,7 @@ export async function* runChatStreaming(env: Env, messages: any[], maxTokens: nu
     messages = [{ role: 'user', content: messages[0].content }, ...messages.slice(1)];
   }
 
-  const res = await env.AI.run(model.id, { stream: true, max_tokens: maxTokens, temperature: 0.7, messages }) as any;
-
-  if (res instanceof ReadableStream) {
-    const reader = res.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') return;
-          try {
-            const parsed = JSON.parse(data);
-            const text = parsed?.response || parsed?.choices?.[0]?.delta?.content || '';
-            if (text) yield text;
-          } catch { }
-        }
-      }
-    }
-    if (buffer.startsWith('data: ')) {
-      const data = buffer.slice(6).trim();
-      if (data !== '[DONE]') {
-        try {
-          const parsed = JSON.parse(data);
-          const text = parsed?.response || parsed?.choices?.[0]?.delta?.content || '';
-          if (text) yield text;
-        } catch { }
-      }
-    }
-    return;
-  }
-
-  if (res?.[Symbol.asyncIterator]) {
-    for await (const chunk of res) {
-      const text = chunk?.response || chunk?.choices?.[0]?.delta?.content || '';
-      if (text) yield text;
-    }
-    return;
-  }
-
-  const text = extractText(res);
-  if (text) yield text;
+  yield* streamWithContinuation(env, messages, maxTokens, modelKey, model.id);
 }
 
 export async function runVision(env: Env, prompt: string, imageBytes: number[] | Uint8Array): Promise<string> {
@@ -447,10 +548,13 @@ export async function enhancePrompt(env: Env, rawPrompt: string): Promise<string
 export function cleanAIResponseText(text: string): string {
   let clean = text
     .replace(/<\|?think\|?>[\s\S]*?<\/\|?think\|?>/g, '')
-    .replace(/<\|?think\|?>[\s\S]*/g, '')
+    .replace(/<\/??\|?think\|??>/g, '')
     .replace(/^[\s\n]+/, '').trim();
   if (!clean) {
-    clean = text.replace(/<\|?think\|?>[\s\S]*?<\/\|?think\|?>/g, '').replace(/<\/??\|?think\|??>/g, '').trim();
+    clean = text
+      .replace(/<\|?think\|?>[\s\S]*?<\/\|?think\|?>/g, '')
+      .replace(/<\/??\|?think\|??>/g, '')
+      .trim();
   }
   return clean;
 }
