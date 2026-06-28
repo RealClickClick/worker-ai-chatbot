@@ -1,13 +1,13 @@
-<div align="center">
+﻿<div align="center">
   <br/>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
-    <img alt="AI Telegram Bot" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
+    <img alt="AI Telegram Bot" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
   </picture>
 
   <br/><br/>
 
-  <p><strong>سرورلس • نوع‑ایمن • چند‑زبانه • ۶۸ شخصیت • RAG • محیط اجرای کد</strong></p>
+  <p><strong>سرورلس • نوع‑ایمن • چند‑زبانه • ۶۸ شخصیت • RAG • محیط اجرای کد • ابزارها • حالت‌ها</strong></p>
 
   <p>
     یک دستیار هوش مصنوعی تلگرام در سطح تولید که کاملاً روی Cloudflare Workers اجرا می‌شود.<br/>
@@ -166,6 +166,42 @@
   <tr>
     <td align="center">🏷️</td>
     <td><strong>استیکر / موقعیت / مخاطب</strong><br/><sub>پشتیبانی از انواع پیام چندحالته</sub></td>
+    <td align="center">🔧</td>
+    <td><strong>ابزارها (فراخوانی تابع)</strong><br/><sub>آب‌وهوا، ماشین‌حساب، دیکشنری، ارز دیجیتال، اخبار، منطقه زمانی</sub></td>
+  </tr>
+  <tr>
+    <td align="center">📋</td>
+    <td><strong>زنجیره پرامپت / گردش کار</strong><br/><sub>گردش کار چندمرحله‌ای هوش مصنوعی با جایگذاری متغیر</sub></td>
+    <td align="center">📝</td>
+    <td><strong>حالت Quiz</strong><br/><sub>۶ دسته سوال با ردیابی رکورد و امتیازدهی</sub></td>
+  </tr>
+  <tr>
+    <td align="center">👨‍🏫</td>
+    <td><strong>حالت معلم</strong><br/><sub>درس‌های خودکار ۳ سطحی با تمرین و خلاصه</sub></td>
+    <td align="center">💡</td>
+    <td><strong>حالت طوفان فکری</strong><br/><sub>گسترش، دسته‌بندی، ارزیابی و ترکیب ایده‌ها</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🧬</td>
+    <td><strong>RAG برداری</strong><br/><sub>جستجوی معنایی مبتنی بر بردار با شباهت کسینوسی</sub></td>
+    <td align="center">🔊</td>
+    <td><strong>TTS چندزبانه</strong><br/><sub>انتخاب مدل آگاه از زبان (EN, PT, ES, JA, FA, AR)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🎨</td>
+    <td><strong>تصویر هوش مصنوعی در پاسخ‌ها</strong><br/><sub>تولید خودکار تصویر از نشانگرهای <code>[GENERATE_IMAGE]</code></sub></td>
+    <td align="center">🗣️</td>
+    <td><strong>گفتار هوش مصنوعی در پاسخ‌ها</strong><br/><sub>تولید خودکار گفتار از نشانگرهای <code>[GENERATE_SPEECH]</code></sub></td>
+  </tr>
+  <tr>
+    <td align="center">✏️</td>
+    <td><strong>پشتیبانی از پیام ویرایش‌شده</strong><br/><sub>AI دوباره پاسخ می‌دهد وقتی کاربر پیامی را ویرایش می‌کند</sub></td>
+    <td align="center">⚡</td>
+    <td><strong>لایه کش KV</strong><br/><sub>کش سه‌لایه اختیاری مبتنی بر KV (KV ← حافظه ← DB)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🔒</td>
+    <td><strong>قفل پیام</strong><br/><sub>قفل مبتنی بر D1 از شرایط مسابقه جلوگیری می‌کند</sub></td>
     <td align="center"></td>
     <td></td>
   </tr>
@@ -218,6 +254,7 @@
       <code>npx wrangler secret put TELEGRAM_BOT_TOKEN</code><br/>
       <code>npx wrangler secret put BRAVE_API_KEY</code>  <i>(اختیاری)</i><br/>
       <code>npx wrangler secret put GOOGLE_GEMINI_API_KEY</code>  <i>(اختیاری)</i><br/>
+      <code>npx wrangler secret put NEWS_API_KEY</code>  <i>(اختیاری)</i><br/>
       <code>npx wrangler secret put WEBHOOK_SECRET</code> <i>(اختیاری)</i><br/>
       <code>npx wrangler secret put ADMIN_IDS</code>     <i>(اختیاری)</i>
     </td>
@@ -256,34 +293,35 @@
 
 5. به **Settings → Variables and Secrets** بروید و این متغیرهای محیطی را اضافه کنید:
 
-   - `TELEGRAM_BOT_TOKEN` — توکن ربات از [@BotFather](https://t.me/BotFather)
-   - `WORKER_DOMAIN` — `your-worker-name.your-subdomain.workers.dev`
-   - `ADMIN_IDS` — آیدی عددی تلگرام شما (اختیاری)
-   - `BRAVE_API_KEY` — برای جستجوی وب (اختیاری)
-   - `GOOGLE_GEMINI_API_KEY` — برای مدل‌های Gemini (اختیاری)
-   - `WEBHOOK_SECRET` — برای تایید webhook (اختیاری)
-   - `BOT_NAME` — اسم دلخواه برای ربات (اختیاری، جایگزین اسم شخصیت)
-   - `BOT_DESCRIPTION` — دستورالعمل اضافی برای system prompt (اختیاری)
+   - <code>TELEGRAM_BOT_TOKEN</code> — توکن ربات از <a href="https://t.me/BotFather">@BotFather</a>
+   - <code>WORKER_DOMAIN</code> — <code>your-worker-name.your-subdomain.workers.dev</code>
+   - <code>ADMIN_IDS</code> — آیدی عددی تلگرام شما (اختیاری)
+   - <code>BRAVE_API_KEY</code> — برای جستجوی وب (اختیاری)
+   - <code>GOOGLE_GEMINI_API_KEY</code> — برای مدل‌های Gemini (اختیاری)
+   - <code>NEWS_API_KEY</code> — برای ابزار اخبار (اختیاری)
+   - <code>WEBHOOK_SECRET</code> — برای تایید webhook (اختیاری)
+   - <code>BOT_NAME</code> — اسم دلخواه برای ربات (اختیاری، جایگزین اسم شخصیت)
+   - <code>BOT_DESCRIPTION</code> — دستورالعمل اضافی برای system prompt (اختیاری)
 
    ![مرحله ۶: تنظیمات متغیرها](docs/setup-screenshots/06-settings-variables.png)
    ![مرحله ۷: افزودن توکن تلگرام](docs/setup-screenshots/07-add-telegram-token.png)
    ![مرحله ۸: افزودن دامنه Worker](docs/setup-screenshots/08-add-worker-domain.png)
 
-6. به **Workers & Pages** → worker شما → **Settings** → **Bindings** → **Add binding** بروید → **D1 Database** را انتخاب کنید → نام آن را `DB` بگذارید
+6. به **Workers & Pages** → worker شما → **Settings** → **Bindings** → **Add binding** بروید → **D1 Database** را انتخاب کنید → نام آن را <code>DB</code> بگذارید
 
    ![مرحله ۹: افزودن binding](docs/setup-screenshots/09-bindings-add-binding.png)
    ![مرحله ۱۰: افزودن D1 Database](docs/setup-screenshots/10-add-d1-database.png)
 
-7. به **Bindings** → **Add binding** بروید → **Workers AI** را انتخاب کنید → نام آن را `AI` بگذارید
+7. به **Bindings** → **Add binding** بروید → **Workers AI** را انتخاب کنید → نام آن را <code>AI</code> بگذارید
 
    ![مرحله ۱۱: افزودن Workers AI](docs/setup-screenshots/11-add-workers-ai.png)
    ![مرحله ۱۲: تنظیم AI Binding](docs/setup-screenshots/12-configure-ai-binding.png)
 
-8. وارد `https://your-worker.workers.dev/init` شوید — تمام جداول پایگاه داده ساخته می‌شود
+8. وارد <code>https://your-worker.workers.dev/init</code> شوید — تمام جداول پایگاه داده ساخته می‌شود
 
    ![مرحله ۱۳: مقداردهی پایگاه داده](docs/setup-screenshots/13-init-database.png)
 
-9. وارد `https://your-worker.workers.dev/setWebhook` شوید — webhook تلگرام ثبت می‌شود
+9. وارد <code>https://your-worker.workers.dev/setWebhook</code> شوید — webhook تلگرام ثبت می‌شود
 
    ![مرحله ۱۴: تنظیم webhook](docs/setup-screenshots/14-set-webhook.png)
 
@@ -308,7 +346,9 @@
   </tr>
 </table>
 
-> ✅ **انجام شد.** ربات شما فعال است — نیاز به تنظیمات دیگری نیست.
+<blockquote>
+  <p>✅ <strong>انجام شد.</strong> ربات شما فعال است — نیاز به تنظیمات دیگری نیست.</p>
+</blockquote>
 
 ---
 
@@ -449,6 +489,41 @@
     <td><code>/feedback</code></td>
     <td><code>&lt;message&gt;</code></td>
     <td>ارسال بازخورد</td>
+  </tr>
+  <tr>
+    <td><code>/tools</code></td>
+    <td>—</td>
+    <td>فعال/غیرفعال کردن ابزارها (آب‌وهوا، ماشین‌حساب، دیکشنری، ارز دیجیتال، اخبار، منطقه زمانی)</td>
+  </tr>
+  <tr>
+    <td><code>/workflow</code></td>
+    <td><code>create &lt;n&gt; | &lt;s1&gt; | ...</code> · <code>list</code> · <code>view</code> · <code>run</code> · <code>delete</code></td>
+    <td>ایجاد و اجرای زنجیره‌های پرامپت چندمرحله‌ای</td>
+  </tr>
+  <tr>
+    <td><code>/mode_quiz</code></td>
+    <td>—</td>
+    <td>شروع حالت Quiz (۶ دسته، ردیابی رکورد)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_teacher</code></td>
+    <td>—</td>
+    <td>شروع حالت معلم (۳ سطح، درس‌های خودکار)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_brainstorm</code></td>
+    <td>—</td>
+    <td>شروع حالت طوفان فکری (گسترش، دسته‌بندی، ارزیابی، ترکیب)</td>
+  </tr>
+  <tr>
+    <td><code>/adapt</code></td>
+    <td>—</td>
+    <td>نمایش پروفایل شخصیت تطبیقی و ویژگی‌ها</td>
+  </tr>
+  <tr>
+    <td><code>/adapt reset</code></td>
+    <td>—</td>
+    <td>بازنشانی داده‌های یادگیری شخصیت تطبیقی</td>
   </tr>
   <tr>
     <td><code>/admin</code></td>
@@ -712,15 +787,13 @@
 <h3>جریان داده</h3>
 
 <pre>
-  ① Telegram → POST /  (تأییدشده با secret_token)
-  ② index.ts → تجزیه JSON، اعتبارسنجی payload
-  ③ message.ts → طبقه‌بندی: متن / عکس / صدا / فایل / URL / دستور
-  ④ db.ts → بارگذاری تنظیمات کاربر (شخصیت، مدل، نشست، زبان)
-  ⑤ ai.ts → ساخت system prompt + دریافت تاریخچه گفتگوی اخیر
-  ⑥ Workers AI → اجرای استنتاج (LLM / vision / Whisper / SDXL)
-  ⑦ htmlParser.ts → تبدیل Markdown به Telegram HTML
-  ⑧ telegram.ts → ارسال پاسخ قالب‌بندی‌شده + دکمه‌های بازخورد
-  ⑨ db.ts → ذخیره پیام کاربر + پاسخ هوش مصنوعی در D1
+  ① Telegram → POST /
+  ② حذف تکراری از طریق کش update_id + initCache(env)
+  ③ طبقه‌بندی + media-pipeline → processMedia()
+  ④ بارگذاری تنظیمات + RAG (برداری یا LIKE) + حافظه + شخصیت تطبیقی + توضیحات ابزارها
+  ⑤ استنتاج AI با حلقه تکراری ابزار (تا ۵ نوبت)
+  ⑥ پردازش پسین: [GENERATE_IMAGE] → SDXL، [GENERATE_SPEECH] → TTS، [TOOL_CALL] → اجرای ابزار
+  ⑦ قالب‌بندی پاسخ + ارسال + ذخیره + recordInteraction()
 </pre>
 
 <h3>پشته فناوری</h3>
@@ -941,9 +1014,14 @@ buildGroupContext(chatId, userId, message)
     <td align="center">—</td>
     <td>کلید API Google AI Studio برای مدل‌های Gemini (<a href="https://aistudio.google.com/apikey">دریافت کنید</a>)</td>
   </tr>
+  <tr>
+    <td><code>NEWS_API_KEY</code></td>
+    <td align="center">—</td>
+    <td>کلید API برای ابزار اخبار از <a href="https://newsapi.org/">NewsAPI</a></td>
+  </tr>
 </table>
 
-<p>یک binding به نام <code>DB</code> برای D1 و یک binding به نام <code>AI</code> برای Workers AI الزامی است. طرح پایگاه داده (۱۲ جدول) در اولین <code>/init</code> از طریق سیستم مهاجرت داخلی به‌طور خودکار ایجاد می‌شود.</p>
+<p>یک binding به نام <code>DB</code> برای D1 و یک binding به نام <code>AI</code> برای Workers AI الزامی است. به صورت اختیاری، یک binding فضای نام KV به نام <code>KV_CACHE</code> کش پایدار بین-ایزوله را فعال می‌کند. طرح پایگاه داده (۱۶+ جدول) در اولین <code>/init</code> از طریق سیستم مهاجرت داخلی (v1–v28) به‌طور خودکار ایجاد می‌شود.</p>
 
 ---
 
@@ -1010,14 +1088,14 @@ buildGroupContext(chatId, userId, message)
 <b>src/</b>
 ├── <b>index.ts</b>              #  ورودی Worker — مسیریابی، اعتبارسنجی webhook
 ├── <b>ai.ts</b>                 #  استنتاج هوش مصنوعی، ساختن system prompt، جستجوی وب
-├── <b>db.ts</b>                 #  لایه D1 — مهاجرت‌ها، پرس‌وجوها، کش، محدودیت نرخ
+├── <b>db.ts</b>                 #  exportهای سازگار با عقب (قدیمی)
 ├── <b>locales.ts</b>            #  بین‌المللی‌سازی (i18n) — ۵ زبان، درون‌یابی قالب
 ├── <b>locales/</b>              #  فایل‌های جداگانه هر زبان
-│   ├── <b>en.ts</b>              #  انگلیسی (317 کلید)
-│   ├── <b>fa.ts</b>              #  فارسی (316 کلید)
-│   ├── <b>ar.ts</b>              #  عربی (291 کلید)
-│   ├── <b>tr.ts</b>              #  ترکی (291 کلید)
-│   └── <b>ru.ts</b>              #  روسی (300 کلید)
+│   ├── <b>en.ts</b>              #  انگلیسی (355+ کلید)
+│   ├── <b>fa.ts</b>              #  فارسی (354+ کلید)
+│   ├── <b>ar.ts</b>              #  عربی (345+ کلید)
+│   ├── <b>tr.ts</b>              #  ترکی (345+ کلید)
+│   └── <b>ru.ts</b>              #  روسی (345+ کلید)
 ├── <b>telegram.ts</b>           #  کلاینت Telegram API — تلاش مجدد، تکه‌تکه‌کردن، بارگذاری
 ├── <b>constants.ts</b>          #  ثابت‌های مشترک (محدودیت نرخ، RAG، Piston و غیره)
 ├── <b>model-config.ts</b>       #  ثبت مدل‌ها، قابلیت‌ها، پیکربندی هزینه
@@ -1025,7 +1103,7 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>env.d.ts</b>           #  رابط Env، انواع Telegram، UserSettings
 │   └── <b>d1.ts</b>              #  تعریف انواع ردیف‌های D1
 ├── <b>handlers/</b>
-│   ├── <b>message.ts</b>        #  طبقه‌بندی پیام (متن/عکس/صدا/فایل/URL)
+│   ├── <b>message.ts</b>        #  طبقه‌بندی پیام + خط لوله پاسخ AI
 │   ├── <b>command.ts</b>        #  پیاده‌سازی تمام دستورات /slash
 │   ├── <b>callback.ts</b>       #  مسیریابی بازخورد صفحه‌کلید درون‌خطی
 │   ├── <b>admin.ts</b>          #  پنل مدیریت (آمار، ارسال همگانی، مسدودسازی، پاکسازی)
@@ -1034,7 +1112,9 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>daily.ts</b>          #  مدیریت نکات روزانه
 │   ├── <b>reminder.ts</b>       #  جادوگر یادآور + پردازش کرون
 │   ├── <b>debate.ts</b>         #  جادوگر بحث چندعامله
-│   └── <b>inline.ts</b>         #  مدیریت پرس‌وجوی درون‌خطی
+│   ├── <b>inline.ts</b>         #  مدیریت پرس‌وجوی درون‌خطی
+│   ├── <b>adapt.ts</b>          #  دستورات /adapt و /adapt reset
+│   └── <b>workflow.ts</b>       #  دستور /workflow (create/list/view/run/delete)
 ├── <b>menus/</b>
 │   ├── <b>modeMenu.ts</b>       #  منوهای شخصیت/مدل/زبان/کیبورد
 │   ├── <b>debateMenu.ts</b>     #  منوهای کیبورد جریان بحث
@@ -1042,19 +1122,25 @@ buildGroupContext(chatId, userId, message)
 ├── <b>modes/</b>
 │   ├── <b>types.ts</b>          #  تعریف انواع سیستم حالت
 │   ├── <b>registry.ts</b>       #  ثبت و جستجوی حالت‌ها
-│   └── <b>exam.ts</b>           #  پیاده‌سازی حالت امتحان
+│   ├── <b>exam.ts</b>           #  پیاده‌سازی حالت امتحان
+│   ├── <b>quiz.ts</b>           #  حالت Quiz (۶ دسته، ردیابی رکورد)
+│   ├── <b>teacher.ts</b>        #  حالت معلم (۳ سطح، درس‌های خودکار)
+│   └── <b>brainstorm.ts</b>     #  حالت طوفان فکری (گسترش/دسته‌بندی/ارزیابی/ترکیب)
 ├── <b>parsers/</b>
 │   └── <b>htmlParser.ts</b>     #  مبدل Markdown به Telegram HTML
 ├── <b>repositories/</b>
-│   ├── <b>settings.repo.ts</b>  #  تنظیمات کاربر + مهاجرت‌ها (v1–v21)
+│   ├── <b>settings.repo.ts</b>  #  تنظیمات کاربر + مهاجرت‌ها (v1–v28)
 │   ├── <b>chat.repo.ts</b>      #  تاریخچه چت + پیام‌های گروهی
 │   ├── <b>admin.repo.ts</b>     #  محدودیت نرخ، مسدودها، آمار، زمان‌بندی
-│   ├── <b>cache.ts</b>          #  کش TTL درون‌حافظه‌ای
+│   ├── <b>cache.ts</b>          #  لایه کش DB (کش TTL مبتنی بر KV)
 │   ├── <b>persona.repo.ts</b>   #  شخصیت‌های سفارشی + بازخورد تطبیق
 │   ├── <b>debate.repo.ts</b>    #  جلسات بحث + پیام‌ها
 │   ├── <b>reminder.repo.ts</b>  #  عملیات CRUD یادآورها
 │   ├── <b>documents.repo.ts</b> #  ذخیره و جستجوی اسناد RAG
-│   └── <b>memory.repo.ts</b>    #  ذخیره خلاصه‌های حافظه
+│   ├── <b>memory.repo.ts</b>    #  ذخیره خلاصه‌های حافظه
+│   ├── <b>media.repo.ts</b>     #  فراداده رسانه (عکس، سند، صدا و غیره)
+│   ├── <b>embeddings.repo.ts</b> #  بردارهای تعبیه برای RAG
+│   └── <b>workflow.repo.ts</b>  #  عملیات CRUD گردش کار
 ├── <b>services/</b>
 │   ├── <b>index.ts</b>          #  صادرات مجدد متمرکز لایه سرویس
 │   ├── <b>settings.service.ts</b>  #  منطق کسب‌وکار تنظیمات کاربر
@@ -1064,14 +1150,30 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>router.service.ts</b>  #  طبقه‌بندی پیام → مسیریابی مدل
 │   ├── <b>rag.service.ts</b>     #  تکه‌تکه‌سازی متن، ایندکس‌گذاری، بازیابی
 │   ├── <b>sandbox.service.ts</b> #  اجرای کد Piston API (۲۰ زبان)
-│   └── <b>memory.service.ts</b>  #  خلاصه‌سازی AI و یادآوری متن
+│   ├── <b>memory.service.ts</b>  #  خلاصه‌سازی AI و یادآوری متن
+│   ├── <b>media-pipeline.service.ts</b>  #  پردازش و خروجی رسانه چندحالته
+│   └── <b>workflow.service.ts</b>  #  موتور اجرای گردش کار
 └── <b>utils/</b>
     ├── <b>logger.ts</b>         #  ثبت وقایع ساختاریافته JSON با شناسه درخواست
+    ├── <b>mutex.ts</b>          #  قفل مبتنی بر D1 برای جلوگیری از شرایط مسابقه
+    ├── <b>cache.ts</b>          #  کش سه‌لایه KV (KV ← حافظه ← DB)، کش‌های پاسخ/جستجو
     ├── <b>error.ts</b>          #  سلسله‌مراتب AppError، لفاف‌های ایمن/تلاش مجدد
     ├── <b>file.ts</b>           #  دانلود فایل تلگرام، استخراج متن PDF
-    ├── <b>cache.ts</b>          #  کش TTL درون‌حافظه‌ای
+    ├── <b>media.ts</b>          #  مدیریت‌کننده‌های عکس/سند/صدا/استیکر/video_note/موقعیت/مخاطب
     ├── <b>validate.ts</b>       #  اعتبارسنجی ورودی
     └── <b>occasions.ts</b>      #  تقویم مناسبت‌ها برای نکات روزانه
+
+<b>tools/</b>
+├── <b>types.ts</b>              #  انواع ToolDefinition و ToolCall، نشانگرهای [TOOL_CALL]
+├── <b>registry.ts</b>           #  ثبت، تجزیه و اجرای ابزارها
+├── <b>index.ts</b>              #  مقداردهی اولیه ابزارها و exportهای مجدد
+└── <b>builtins/</b>
+    ├── <b>weather.ts</b>        #  ابزار آب‌وهوا (Open‑Meteo، بدون نیاز به کلید API)
+    ├── <b>calculator.ts</b>     #  ابزار ماشین‌حساب ریاضی
+    ├── <b>time.ts</b>           #  ابزار منطقه زمانی / ساعت جهانی
+    ├── <b>define.ts</b>         #  ابزار دیکشنری
+    ├── <b>crypto.ts</b>         #  ابزار قیمت ارز دیجیتال
+    └── <b>news.ts</b>           #  ابزار عناوین اخبار (NEWS_API_KEY)
 
 <b>config/</b>
 ├── <b>personas.ts</b>           #  ۶۸ تعریف شخصیت (هرکدام به ۵ زبان)
@@ -1217,6 +1319,46 @@ curl http://localhost:8787/setWebhook
     <td>کارایی — اندازه‌گیری اطراف streaming + سخت‌سازی ورودی</td>
     <td align="center">✅</td>
   </tr>
+  <tr>
+    <td>۱۵</td>
+    <td>ابزارها (فراخوانی تابع) — آب‌وهوا، ماشین‌حساب، دیکشنری، ارز دیجیتال، اخبار، منطقه زمانی با حلقه ReAct</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>۱۶</td>
+    <td>خط لوله چندحالته — ذخیره فراداده رسانه، خروجی [GENERATE_IMAGE] و [GENERATE_SPEECH]، پشتیبانی از پیام ویرایش‌شده</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>۱۷</td>
+    <td>زنجیره پرامپت / گردش کار — create/list/view/run/delete با جایگذاری متغیر</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>۱۸</td>
+    <td>حالت‌ها — Quiz (۶ دسته)، معلم (۳ سطح)، طوفان فکری (گسترش/دسته‌بندی/ارزیابی/ترکیب)</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>۱۹</td>
+    <td>شخصیت تطبیقی v2 — تحلیل ساختاریافته ۵ ویژگی، نمایش پروفایل <code>/adapt</code></td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>۲۰</td>
+    <td>RAG برداری — جستجوی معنایی مبتنی بر بردار با امتیازدهی شباهت کسینوسی</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>۲۱</td>
+    <td>لایه کش KV — کش سه‌لایه (KV ← حافظه ← DB)، binding اختیاری KV_CACHE</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>۲۲</td>
+    <td>قفل پیام — قفل مبتنی بر D1 از پردازش همزمان شرایط مسابقه جلوگیری می‌کند</td>
+    <td align="center">✅</td>
+  </tr>
 </table>
 
 ---
@@ -1226,7 +1368,7 @@ curl http://localhost:8787/setWebhook
 <ol>
   <li>مخزن را Fork کنید</li>
   <li>یک شاخه ویژگی ایجاد کنید: <code>git checkout -b feature/your-idea</code></li>
-  <li>تغییرات را commit کنید: <code>git commit -m 'Add feature X'</code></li>
+  <li>تغییرات را commit کنید: <code>git commit -m &apos;Add feature X&apos;</code></li>
   <li>Push کنید: <code>git push origin feature/your-idea</code></li>
   <li>یک Pull Request باز کنید</li>
 </ol>

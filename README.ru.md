@@ -1,13 +1,13 @@
-<div align="center">
+﻿<div align="center">
   <br/>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
-    <img alt="AI Telegram Bot" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
+    <img alt="AI Telegram Bot" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
   </picture>
 
   <br/><br/>
 
-  <p><strong>Serverless • Type-Safe • Многоязычный • 68 Персон • RAG • Песочница кода</strong></p>
+  <p><strong>Serverless • Type-Safe • Многоязычный • 68 Персон • RAG • Песочница кода • Инструменты • Режимы</strong></p>
 
   <p>
     Боевой Telegram AI-ассистент, полностью работающий на Cloudflare Workers.<br/>
@@ -169,6 +169,48 @@
     <td align="center"></td>
     <td></td>
   </tr>
+  <tr>
+    <td align="center">🔧</td>
+    <td><strong>Инструменты (Вызов функций)</strong><br/><sub>Погода, калькулятор, словарь, криптовалюты, новости, часовые пояса (с циклом ReAct)</sub></td>
+    <td align="center">📋</td>
+    <td><strong>Цепочки промптов / Рабочие процессы</strong><br/><sub>Многошаговые AI-процессы с подстановкой переменных</sub></td>
+  </tr>
+  <tr>
+    <td align="center">📝</td>
+    <td><strong>Режим викторины</strong><br/><sub>6 категорий, отслеживание серий, подсчёт очков</sub></td>
+    <td align="center">👨‍🏫</td>
+    <td><strong>Режим учителя</strong><br/><sub>3 уровня, автоматические уроки с упражнениями и резюме</sub></td>
+  </tr>
+  <tr>
+    <td align="center">💡</td>
+    <td><strong>Режим мозгового штурма</strong><br/><sub>Расширяйте, категоризируйте, оценивайте и комбинируйте идеи</sub></td>
+    <td align="center">🧬</td>
+    <td><strong>Векторный RAG</strong><br/><sub>Семантический поиск на основе эмбеддингов с косинусным сходством</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🔊</td>
+    <td><strong>Многоязычный TTS</strong><br/><sub>Выбор модели с учётом языка (EN, PT, ES, JA, FA, AR)</sub></td>
+    <td align="center">🎨</td>
+    <td><strong>Изображения AI в ответах</strong><br/><sub>Авто-генерация из маркеров [GENERATE_IMAGE]</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🗣️</td>
+    <td><strong>Речь AI в ответах</strong><br/><sub>Авто-генерация речи из маркеров [GENERATE_SPEECH]</sub></td>
+    <td align="center">✏️</td>
+    <td><strong>Поддержка отредактированных сообщений</strong><br/><sub>AI отвечает заново при редактировании сообщения</sub></td>
+  </tr>
+  <tr>
+    <td align="center">⚡</td>
+    <td><strong>Кэш-слой KV</strong><br/><sub>Опциональное 3-уровневое кэширование (KV → память → БД)</sub></td>
+    <td align="center">🔒</td>
+    <td><strong>Мьютекс сообщений</strong><br/><sub>Блокировка на D1 предотвращает состояния гонки</sub></td>
+  </tr>
+  <tr>
+    <td align="center"></td>
+    <td></td>
+    <td align="center"></td>
+    <td></td>
+  </tr>
 </table>
 
 ---
@@ -218,6 +260,7 @@
       <code>npx wrangler secret put TELEGRAM_BOT_TOKEN</code><br/>
       <code>npx wrangler secret put BRAVE_API_KEY</code>  <i>(опционально)</i><br/>
       <code>npx wrangler secret put GOOGLE_GEMINI_API_KEY</code>  <i>(опционально)</i><br/>
+      <code>npx wrangler secret put NEWS_API_KEY</code>  <i>(опционально)</i><br/>
       <code>npx wrangler secret put WEBHOOK_SECRET</code> <i>(опционально)</i><br/>
       <code>npx wrangler secret put ADMIN_IDS</code>     <i>(опционально)</i>
     </td>
@@ -260,8 +303,9 @@
    - `WORKER_DOMAIN` — `your-worker-name.your-subdomain.workers.dev`
    - `ADMIN_IDS` — ваш Telegram ID (опционально)
    - `BRAVE_API_KEY` — для веб-поиска (опционально)
-   - `GOOGLE_GEMINI_API_KEY` — для моделей Gemini (опционально)
-   - `WEBHOOK_SECRET` — для верификации webhook (опционально)
+    - `GOOGLE_GEMINI_API_KEY` — для моделей Gemini (опционально)
+    - `NEWS_API_KEY` — API ключ NewsAPI для инструмента новостей (опционально)
+    - `WEBHOOK_SECRET` — для верификации webhook (опционально)
    - `BOT_NAME` — имя для бота (опционально)
    - `BOT_DESCRIPTION` — дополнительные инструкции в system prompt (опционально)
 
@@ -444,6 +488,41 @@
     <td><code>/feedback</code></td>
     <td><code>&lt;message&gt;</code></td>
     <td>Отправить отзыв</td>
+  </tr>
+  <tr>
+    <td><code>/tools</code></td>
+    <td>—</td>
+    <td>Включить/выключить инструменты (погода, калькулятор, словарь, крипто, новости, часовой пояс)</td>
+  </tr>
+  <tr>
+    <td><code>/workflow</code></td>
+    <td><code>create &lt;n&gt; | &lt;s1&gt; | ...</code> · <code>list</code> · <code>view</code> · <code>run</code> · <code>delete</code></td>
+    <td>Создавать и запускать многошаговые цепочки промптов</td>
+  </tr>
+  <tr>
+    <td><code>/mode_quiz</code></td>
+    <td>—</td>
+    <td>Запустить режим викторины (6 категорий, отслеживание серий)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_teacher</code></td>
+    <td>—</td>
+    <td>Запустить режим учителя (3 уровня, автоматические уроки)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_brainstorm</code></td>
+    <td>—</td>
+    <td>Запустить режим мозгового штурма (расширение, категоризация, оценка, комбинирование)</td>
+  </tr>
+  <tr>
+    <td><code>/adapt</code></td>
+    <td>—</td>
+    <td>Показать профиль адаптивной персоны и черты</td>
+  </tr>
+  <tr>
+    <td><code>/adapt reset</code></td>
+    <td>—</td>
+    <td>Сбросить данные обучения адаптивной персоны</td>
   </tr>
   <tr>
     <td><code>/admin</code></td>
@@ -708,14 +787,18 @@
 
 <pre>
   ① Telegram → POST /  (верификация через secret_token)
-  ② index.ts → парсинг JSON, проверка payload
-  ③ message.ts → классификация: текст / фото / голос / файл / URL / команда
-  ④ db.ts → загрузка настроек пользователя (персона, модель, сессия, язык)
-  ⑤ ai.ts → сборка system prompt + получение недавней истории чата
-  ⑥ Workers AI → запуск инференса (LLM / vision / Whisper / SDXL)
-  ⑦ htmlParser.ts → конвертация Markdown → Telegram HTML
-  ⑧ telegram.ts → отправка форматированного ответа + кнопки обратной связи
-  ⑨ db.ts → сохранение сообщения пользователя и ответа AI в D1
+  ② index.ts → дедупликация через update_id кэш + initCache(env)
+  ③ message.ts → классификация: текст / фото / голос / файл / URL / команда / стикер / video_note / местоположение / контакт / edited_message
+    ④ media-pipeline → processMedia(): загрузка, сохранение метаданных в D1, построение контекста
+  ⑤ загрузка настроек (персона, модель, сессия, язык, инструменты, режим, ансамбль, маршрутизация) + RAG (векторный или LIKE) + сводка памяти + адаптация персоны
+    ⑥ tools_enabled → внедрение описаний инструментов (погода, калькулятор, крипто, и т.д.)
+  ⑦ ai.ts → сборка system prompt + получение недавней истории чата
+  ⑧ Workers AI → запуск инференса с опциональным циклом повторного вызова инструментов (до 5 раундов)
+  ⑨ пост-обработка: [GENERATE_IMAGE] → SDXL · [GENERATE_SPEECH] → TTS · [TOOL_CALL] → выполнение инструмента
+    ⑩ htmlParser.ts → конвертация Markdown → Telegram HTML
+    ⑪ telegram.ts → отправка форматированного ответа + кнопки обратной связи
+    ⑫ сохранение сообщения пользователя и ответа AI в D1
+    ⑬ recordInteraction() → анализ черт адаптивной персоны (каждые 15 сообщений)
 </pre>
 
 <h3>Технологический стек</h3>
@@ -936,9 +1019,14 @@ buildGroupContext(chatId, userId, message)
     <td align="center">—</td>
     <td>API ключ Google AI Studio для моделей Gemini (<a href="https://aistudio.google.com/apikey">получить</a>)</td>
   </tr>
+  <tr>
+    <td><code>NEWS_API_KEY</code></td>
+    <td align="center">—</td>
+    <td>API ключ для новостного инструмента от <a href="https://newsapi.org/">NewsAPI</a></td>
+  </tr>
 </table>
 
-<p>Требуются биндинги D1 с именем <code>DB</code> и Workers AI с именем <code>AI</code>. Схема базы данных (12 таблиц) автоматически создаётся при первом <code>/init</code> через встроенную систему миграций.</p>
+<p>Требуются биндинги D1 с именем <code>DB</code> и Workers AI с именем <code>AI</code>. Опционально, биндинг пространства имён KV с именем <code>KV_CACHE</code> включает постоянное кэширование между изолятами. Схема базы данных (16+ таблиц) автоматически создаётся при первом <code>/init</code> через встроенную систему миграций (v1–v28).</p>
 
 ---
 
@@ -1004,15 +1092,15 @@ buildGroupContext(chatId, userId, message)
 <pre>
 <b>src/</b>
 ├── <b>index.ts</b>              #  Точка входа Worker — маршрутизация, проверка webhook
-├── <b>ai.ts</b>                 #  AI инференс, сборка system prompt, веб‑поиск
-├── <b>db.ts</b>                 #  Слой D1 — миграции, запросы, кэширование, лимиты
+├── <b>ai.ts</b>                 #  AI инференс, сборка system prompt, веб-поиск
+├── <b>db.ts</b>                 #  Обратно совместимые ре-экспорты (legacy)
 ├── <b>locales.ts</b>            #  i18n — 5 языков, интерполяция шаблонов
 ├── <b>locales/</b>              #  Файлы локалей для каждого языка
-│   ├── <b>en.ts</b>              #  Английский (317 ключей)
-│   ├── <b>fa.ts</b>              #  Персидский (316 ключей)
-│   ├── <b>ar.ts</b>              #  Арабский (291 ключ)
-│   ├── <b>tr.ts</b>              #  Турецкий (291 ключ)
-│   └── <b>ru.ts</b>              #  Русский (300 ключей)
+│   ├── <b>en.ts</b>              #  Английский (355+ ключей)
+│   ├── <b>fa.ts</b>              #  Персидский (354+ ключей)
+│   ├── <b>ar.ts</b>              #  Арабский (345+ ключей)
+│   ├── <b>tr.ts</b>              #  Турецкий (345+ ключей)
+│   └── <b>ru.ts</b>              #  Русский (345+ ключей)
 ├── <b>telegram.ts</b>           #  Telegram API клиент — повторные попытки, чанкинг, загрузки
 ├── <b>constants.ts</b>          #  Общие константы (лимиты, RAG, Piston и т.д.)
 ├── <b>model-config.ts</b>       #  Реестр моделей, возможности, конфиг стоимости
@@ -1020,16 +1108,18 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>env.d.ts</b>           #  Интерфейс Env, типы Telegram, UserSettings
 │   └── <b>d1.ts</b>              #  Определения типов строк D1
 ├── <b>handlers/</b>
-│   ├── <b>message.ts</b>        #  Классификатор сообщений (текст/фото/голос/файл/URL)
+│   ├── <b>message.ts</b>        #  Классификатор сообщений + конвейер AI-ответов
 │   ├── <b>command.ts</b>        #  Реализации всех /slash команд
-│   ├── <b>callback.ts</b>       #  Маршрутизация inline‑клавиатур
+│   ├── <b>callback.ts</b>       #  Маршрутизация inline-клавиатур
 │   ├── <b>admin.ts</b>          #  Панель администратора (статистика, рассылка, блокировки, очистка)
-│   ├── <b>session.ts</b>        #  Управление мульти‑сессиями
+│   ├── <b>session.ts</b>        #  Управление мульти-сессиями
 │   ├── <b>persona.ts</b>        #  Создание собственных персон
 │   ├── <b>daily.ts</b>          #  Ежедневные советы (крон)
 │   ├── <b>reminder.ts</b>       #  Мастер напоминаний + крон
 │   ├── <b>debate.ts</b>         #  Мастер мульти-агентных дискуссий
-│   └── <b>inline.ts</b>         #  Обработчик inline‑запросов
+│   ├── <b>inline.ts</b>         #  Обработчик inline-запросов
+│   ├── <b>adapt.ts</b>          #  Команды /adapt и /adapt reset
+│   └── <b>workflow.ts</b>       #  Команда /workflow (create/list/view/run/delete)
 ├── <b>menus/</b>
 │   ├── <b>modeMenu.ts</b>       #  Динамические меню персон/моделей/языков/клавиатур
 │   ├── <b>debateMenu.ts</b>     #  Клавиатуры для потока дискуссий
@@ -1037,36 +1127,58 @@ buildGroupContext(chatId, userId, message)
 ├── <b>modes/</b>
 │   ├── <b>types.ts</b>          #  Определения типов системы режимов
 │   ├── <b>registry.ts</b>       #  Реестр режимов и поиск
-│   └── <b>exam.ts</b>           #  Реализация режима экзамена
+│   ├── <b>exam.ts</b>           #  Реализация режима экзамена
+│   ├── <b>quiz.ts</b>           #  Режим викторины (6 категорий, отслеживание серий)
+│   ├── <b>teacher.ts</b>        #  Режим учителя (3 уровня, автоматические уроки)
+│   └── <b>brainstorm.ts</b>     #  Режим мозгового штурма (расширение/категоризация/оценка/комбинирование)
 ├── <b>parsers/</b>
 │   └── <b>htmlParser.ts</b>     #  Конвертер Markdown → Telegram HTML
 ├── <b>repositories/</b>
-│   ├── <b>settings.repo.ts</b>  #  Настройки пользователя + миграции (v1–v21)
+│   ├── <b>settings.repo.ts</b>  #  Настройки пользователя + миграции (v1–v28)
 │   ├── <b>chat.repo.ts</b>      #  История чата + групповые сообщения
 │   ├── <b>admin.repo.ts</b>     #  Лимиты, блокировки, аналитика, тайминги
-│   ├── <b>cache.ts</b>          #  In‑memory TTL кэш
+│   ├── <b>cache.ts</b>          #  Кэш-слой БД (KV-кэш с TTL)
 │   ├── <b>persona.repo.ts</b>   #  Пользовательские персоны + адаптация
 │   ├── <b>debate.repo.ts</b>    #  Сессии дискуссий + сообщения
 │   ├── <b>reminder.repo.ts</b>  #  CRUD напоминаний
 │   ├── <b>documents.repo.ts</b> #  Хранение и поиск документов RAG
-│   └── <b>memory.repo.ts</b>    #  Хранение сводок памяти
+│   ├── <b>memory.repo.ts</b>    #  Хранение сводок памяти
+│   ├── <b>media.repo.ts</b>     #  Метаданные медиа (фото, документы, голос и т.д.)
+│   ├── <b>embeddings.repo.ts</b> #  Векторные эмбеддинги для RAG
+│   └── <b>workflow.repo.ts</b>  #  CRUD для рабочих процессов
 ├── <b>services/</b>
-│   ├── <b>index.ts</b>          #  Централизованный ре‑экспорт сервисного слоя
-│   ├── <b>settings.service.ts</b>  #  Бизнес‑логика настроек пользователя
+│   ├── <b>index.ts</b>          #  Централизованный ре-экспорт сервисного слоя
+│   ├── <b>settings.service.ts</b>  #  Бизнес-логика настроек пользователя
 │   ├── <b>debate.service.ts</b>    #  Логика оркестрации дискуссий
 │   ├── <b>ensemble.service.ts</b>  #  Параллельные запросы к моделям + выбор судьёй
 │   ├── <b>persona-adaptive.service.ts</b>  #  Извлечение черт AI из отзывов
 │   ├── <b>router.service.ts</b>  #  Классификация сообщений → маршрутизация модели
 │   ├── <b>rag.service.ts</b>     #  Разбивка текста, индексация, поиск
 │   ├── <b>sandbox.service.ts</b> #  Выполнение кода Piston API (20 языков)
-│   └── <b>memory.service.ts</b>  #  AI‑суммаризация и контекстный вызов
+│   ├── <b>memory.service.ts</b>  #  AI-суммаризация и контекстный вызов
+│   ├── <b>media-pipeline.service.ts</b>  #  Мультимодальная обработка медиа и вывод
+│   └── <b>workflow.service.ts</b>  #  Движок выполнения рабочих процессов
 └── <b>utils/</b>
-    ├── <b>logger.ts</b>         #  Структурированное JSON‑логирование с ID запросов
+    ├── <b>logger.ts</b>         #  Структурированное JSON-логирование с ID запросов
+    ├── <b>mutex.ts</b>          #  Мьютекс на D1 для предотвращения состояний гонки
+    ├── <b>cache.ts</b>          #  3-уровневый KV-кэш (KV → память → БД), кэши ответов/поиска
     ├── <b>error.ts</b>          #  Иерархия AppError, безопасные/повторные обёртки
     ├── <b>file.ts</b>           #  Загрузка файлов Telegram, извлечение текста из PDF
-    ├── <b>cache.ts</b>          #  In‑memory TTL кэш
+    ├── <b>media.ts</b>          #  Обработчики фото/документов/голоса/стикеров/video_note/местоположения/контактов
     ├── <b>validate.ts</b>       #  Вспомогательные функции валидации
     └── <b>occasions.ts</b>      #  Календарь праздников/событий для ежедневных советов
+
+<b>tools/</b>
+├── <b>types.ts</b>              #  Типы ToolDefinition и ToolCall, маркеры [TOOL_CALL]
+├── <b>registry.ts</b>           #  Регистрация, парсинг и выполнение инструментов
+├── <b>index.ts</b>              #  Инициализация инструментов и ре-экспорты
+└── <b>builtins/</b>
+    ├── <b>weather.ts</b>        #  Инструмент погоды (Open-Meteo, без API-ключа)
+    ├── <b>calculator.ts</b>     #  Инструмент математического калькулятора
+    ├── <b>time.ts</b>           #  Инструмент часовых поясов / мировых часов
+    ├── <b>define.ts</b>         #  Инструмент словаря
+    ├── <b>crypto.ts</b>         #  Инструмент цен криптовалют
+    └── <b>news.ts</b>           #  Инструмент новостей (NEWS_API_KEY)
 
 <b>config/</b>
 ├── <b>personas.ts</b>           #  68 определений персон (по 5 языков каждая)
@@ -1074,7 +1186,7 @@ buildGroupContext(chatId, userId, message)
 
 <b>tests/</b>
 ├── <b>unit/</b>                 #  164 модульных теста (все модули)
-└── <b>integration/</b>          #  9 интеграционных тестов (webhook‑сценарии)
+└── <b>integration/</b>          #  9 интеграционных тестов (webhook-сценарии)
 </pre>
 
 </details>
@@ -1212,6 +1324,46 @@ curl http://localhost:8787/setWebhook
     <td>Производительность — инструментация стриминга + усиление ввода</td>
     <td align="center">✅</td>
   </tr>
+  <tr>
+    <td>15</td>
+    <td>Инструменты (Вызов функций) — погода, калькулятор, словарь, криптовалюты, новости, часовые пояса с циклом ReAct</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>16</td>
+    <td>Мультимодальный конвейер — хранение метаданных медиа, вывод [GENERATE_IMAGE] и [GENERATE_SPEECH], поддержка edited_message</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>17</td>
+    <td>Цепочки промптов / Рабочие процессы — create/list/view/run/delete с подстановкой переменных</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>18</td>
+    <td>Режимы — Викторина (6 категорий), Учитель (3 уровня), Мозговой штурм (расширение/категоризация/оценка/комбинирование)</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>19</td>
+    <td>Адаптивная персона v2 — структурированный анализ 5 черт, визуализация профиля /adapt</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>20</td>
+    <td>Векторный RAG — семантический поиск на основе эмбеддингов с косинусным сходством</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>21</td>
+    <td>Кэш-слой KV — 3-уровневое кэширование (KV → память → БД), опциональная привязка KV_CACHE</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>22</td>
+    <td>Мьютекс сообщений — блокировка на D1 предотвращает состояния гонки при конкурентной обработке</td>
+    <td align="center">✅</td>
+  </tr>
 </table>
 
 ---
@@ -1257,3 +1409,9 @@ curl http://localhost:8787/setWebhook
     <a href="https://dash.cloudflare.com/">Cloudflare Dashboard</a>
   </sub>
 </div>
+
+
+
+
+
+

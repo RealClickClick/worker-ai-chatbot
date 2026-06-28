@@ -1,13 +1,13 @@
-<div align="center">
+﻿<div align="center">
   <br/>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
-    <img alt="AI Telegram Bot" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
+    <img alt="AI Telegram Bot" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
   </picture>
 
   <br/><br/>
 
-  <p><strong>Sunucusuz • Tip-Güvenli • Çok Dilli • 68 Karakter • RAG • Kod Alanı</strong></p>
+  <p><strong>Sunucusuz • Tip-Güvenli • Çok Dilli • 68 Karakter • RAG • Kod Alanı • Araç Kullanımı • Modlar</strong></p>
 
   <p>
     Tamamen Cloudflare Workers üzerinde çalışan, üretim kalitesinde bir Telegram AI asistanı.<br/>
@@ -166,6 +166,42 @@
   <tr>
     <td align="center">🏷️</td>
     <td><strong>Çıkartma / Konum / Kişi</strong><br/><sub>Çok modlu mesaj türü desteği</sub></td>
+    <td align="center">🔧</td>
+    <td><strong>Araç Kullanımı (Fonksiyon Çağırma)</strong><br/><sub>Hava durumu, hesap makinesi, sözlük, kripto, haber, saat dilimi (ReAct döngüsü ile)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">📋</td>
+    <td><strong>Prompt Zincirleri / İş Akışları</strong><br/><sub>Değişken ikamesi ile çok adımlı AI iş akışları</sub></td>
+    <td align="center">📝</td>
+    <td><strong>Bilgi Yarışması Modu</strong><br/><sub>6 kategorili, seri takibi ve puanlama</sub></td>
+  </tr>
+  <tr>
+    <td align="center">👨‍🏫</td>
+    <td><strong>Öğretmen Modu</strong><br/><sub>3 seviyeli otomatik dersler, alıştırmalar ve özetler</sub></td>
+    <td align="center">💡</td>
+    <td><strong>Beyin Fırtınası Modu</strong><br/><sub>Fikirleri genişlet, kategorize et, değerlendir ve birleştir</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🧬</td>
+    <td><strong>Vektör RAG</strong><br/><sub>Gömme tabanlı anlamsal arama, kosinüs benzerliği</sub></td>
+    <td align="center">🔊</td>
+    <td><strong>Çok Dilli Metin Sentezleme</strong><br/><sub>Dil bilincine sahip model seçimi (EN, PT, ES, JA, FA, AR)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🎨</td>
+    <td><strong>Yanıtlarda AI Görseli</strong><br/><sub>[GENERATE_IMAGE] işaretçilerinden otomatik görsel oluşturma</sub></td>
+    <td align="center">🗣️</td>
+    <td><strong>Yanıtlarda AI Konuşması</strong><br/><sub>[GENERATE_SPEECH] işaretçilerinden otomatik konuşma oluşturma</sub></td>
+  </tr>
+  <tr>
+    <td align="center">✏️</td>
+    <td><strong>Düzenlenmiş Mesaj Desteği</strong><br/><sub>Kullanıcı mesajı düzenlediğinde AI yeniden yanıt verir</sub></td>
+    <td align="center">⚡</td>
+    <td><strong>KV Önbellek Katmanı</strong><br/><sub>İsteğe bağlı KV destekli 3 katmanlı önbellekleme</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🔒</td>
+    <td><strong>Mesaj Mutex</strong><br/><sub>D1 tabanlı kilit, yarış koşullarını önler</sub></td>
     <td align="center"></td>
     <td></td>
   </tr>
@@ -218,6 +254,7 @@
       <code>npx wrangler secret put TELEGRAM_BOT_TOKEN</code><br/>
       <code>npx wrangler secret put BRAVE_API_KEY</code>  <i>(isteğe bağlı)</i><br/>
       <code>npx wrangler secret put GOOGLE_GEMINI_API_KEY</code>  <i>(isteğe bağlı)</i><br/>
+      <code>npx wrangler secret put NEWS_API_KEY</code>  <i>(isteğe bağlı)</i><br/>
       <code>npx wrangler secret put WEBHOOK_SECRET</code> <i>(isteğe bağlı)</i><br/>
       <code>npx wrangler secret put ADMIN_IDS</code>     <i>(isteğe bağlı)</i>
     </td>
@@ -260,8 +297,9 @@
    - `WORKER_DOMAIN` — `your-worker-name.your-subdomain.workers.dev`
    - `ADMIN_IDS` — Telegram kullanıcı ID'niz (isteğe bağlı)
    - `BRAVE_API_KEY` — web arama için (isteğe bağlı)
-   - `GOOGLE_GEMINI_API_KEY` — Gemini modelleri için (isteğe bağlı)
-   - `WEBHOOK_SECRET` — webhook doğrulaması için (isteğe bağlı)
+    - `GOOGLE_GEMINI_API_KEY` — Gemini modelleri için (isteğe bağlı)
+    - `NEWS_API_KEY` — haber aracı için NewsAPI anahtarı (isteğe bağlı)
+    - `WEBHOOK_SECRET` — webhook doğrulaması için (isteğe bağlı)
    - `BOT_NAME` — özel bot adı (isteğe bağlı)
    - `BOT_DESCRIPTION` — ek sistem talimatları (isteğe bağlı)
 
@@ -444,6 +482,41 @@
     <td><code>/feedback</code></td>
     <td><code>&lt;message&gt;</code></td>
     <td>Geri bildirim gönder</td>
+  </tr>
+  <tr>
+    <td><code>/tools</code></td>
+    <td>—</td>
+    <td>Araç Kullanımını aç/kapat (hava durumu, hesap makinesi, sözlük, kripto, haber, saat dilimi)</td>
+  </tr>
+  <tr>
+    <td><code>/workflow</code></td>
+    <td><code>create &lt;n&gt; | &lt;s1&gt; | ...</code> · <code>list</code> · <code>view</code> · <code>run</code> · <code>delete</code></td>
+    <td>Çok adımlı prompt zincirleri oluştur ve çalıştır</td>
+  </tr>
+  <tr>
+    <td><code>/mode_quiz</code></td>
+    <td>—</td>
+    <td>Bilgi yarışması modunu başlat (6 kategori, seri takibi)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_teacher</code></td>
+    <td>—</td>
+    <td>Öğretmen modunu başlat (3 seviye, otomatik dersler)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_brainstorm</code></td>
+    <td>—</td>
+    <td>Beyin fırtınası modunu başlat (fikir genişletme, kategorize etme, değerlendirme, birleştirme)</td>
+  </tr>
+  <tr>
+    <td><code>/adapt</code></td>
+    <td>—</td>
+    <td>Uyarlanabilir karakter profilini ve özelliklerini göster</td>
+  </tr>
+  <tr>
+    <td><code>/adapt reset</code></td>
+    <td>—</td>
+    <td>Uyarlanabilir karakter öğrenme verilerini sıfırla</td>
   </tr>
   <tr>
     <td><code>/admin</code></td>
@@ -708,14 +781,18 @@
 
 <pre>
   ① Telegram → POST /  (secret_token ile doğrulanır)
-  ② index.ts → JSON ayrıştır, yükü doğrula
-  ③ message.ts → sınıflandır: metin / fotoğraf / ses / dosya / URL / komut
-  ④ db.ts → kullanıcı ayarlarını yükle (karakter, model, oturum, dil)
-  ⑤ ai.ts → sistem promptu oluştur + son sohbet geçmişini getir
-  ⑥ Workers AI → çıkarım çalıştır (LLM / vision / Whisper / SDXL)
-  ⑦ htmlParser.ts → Markdown'ı Telegram HTML'sine dönüştür
-  ⑧ telegram.ts → biçimlendirilmiş yanıt + geri bildirim düğmeleri gönder
-  ⑨ db.ts → kullanıcı mesajı ve AI yanıtını D1'e kaydet
+  ② index.ts → update_id önbelleği + initCache(env) ile yinelemeyi kaldır
+  ③ message.ts → sınıflandır: metin / fotoğraf / ses / dosya / URL / komut / çıkartma / video_notu / konum / kişi / düzenlenmiş_mesaj
+    ④ media-pipeline → processMedia(): indir, meta verileri D1'e kaydet, bağlam oluştur
+  ⑤ ayarları yükle (karakter, model, oturum, dil, araçlar, mod, topluluk, yönlendirme) + RAG (vektör veya LIKE) + bellek özeti + karakter uyarlaması
+    ⑥ araçlar_etkin → araç açıklamalarını ekle (hava durumu, hesap, kripto, vb.)
+  ⑦ ai.ts → sistem promptu oluştur + son sohbet geçmişini getir
+  ⑧ Workers AI → isteğe bağlı araç yeniden prompt döngüsü ile çıkarım çalıştır (en fazla 5 tur)
+  ⑨ işlem sonrası: [GENERATE_IMAGE] → SDXL · [GENERATE_SPEECH] → TTS · [TOOL_CALL] → aracı çalıştır
+    ⑩ htmlParser.ts → Markdown'ı Telegram HTML'sine dönüştür
+    ⑪ telegram.ts → biçimlendirilmiş yanıt + geri bildirim düğmeleri gönder
+    ⑫ kullanıcı mesajı + AI yanıtını D1'e kaydet
+    ⑬ recordInteraction() → uyarlanabilir karakter özellik analizi (her 15 mesajda bir)
 </pre>
 
 <h3>Teknoloji Yığını</h3>
@@ -936,9 +1013,14 @@ buildGroupContext(chatId, userId, message)
     <td align="center">—</td>
     <td>Gemini modelleri için Google AI Studio API anahtarı (<a href="https://aistudio.google.com/apikey">bir tane al</a>)</td>
   </tr>
+  <tr>
+    <td><code>NEWS_API_KEY</code></td>
+    <td align="center">—</td>
+    <td>Haber aracı için <a href="https://newsapi.org/">NewsAPI</a>'den API anahtarı</td>
+  </tr>
 </table>
 
-<p><code>DB</code> adında bir D1 bağlantısı ve <code>AI</code> adında bir Workers AI bağlantısı gereklidir. Veritabanı şeması (12 tablo), yerleşik migrasyon sistemi aracılığıyla ilk <code>/init</code>'te otomatik olarak oluşturulur.</p>
+<p><code>DB</code> adında bir D1 bağlantısı ve <code>AI</code> adında bir Workers AI bağlantısı gereklidir. İsteğe bağlı olarak, <code>KV_CACHE</code> adında bir KV ad alanı bağlantısı kalıcı çapraz-izolat önbellekleme sağlar. Veritabanı şeması (16+ tablo), yerleşik migrasyon sistemi aracılığıyla ilk <code>/init</code>'te otomatik olarak oluşturulur (v1–v28).</p>
 
 ---
 
@@ -1005,14 +1087,14 @@ buildGroupContext(chatId, userId, message)
 <b>src/</b>
 ├── <b>index.ts</b>              #  Worker girişi — yönlendirme, webhook doğrulama
 ├── <b>ai.ts</b>                 #  AI çıkarımı, sistem promptu oluşturucu, web arama
-├── <b>db.ts</b>                 #  D1 katmanı — migrasyonlar, sorgular, önbellekleme, hız sınırlama
+├── <b>db.ts</b>                 #  Geriye uyumlu yeniden dışa aktarımlar (eski)
 ├── <b>locales.ts</b>            #  i18n — 5 dil, şablon enterpolasyonu
 ├── <b>locales/</b>              #  Her dil için ayrı locale dosyaları
-│   ├── <b>en.ts</b>              #  İngilizce (317 anahtar)
-│   ├── <b>fa.ts</b>              #  Farsça (316 anahtar)
-│   ├── <b>ar.ts</b>              #  Arapça (291 anahtar)
-│   ├── <b>tr.ts</b>              #  Türkçe (291 anahtar)
-│   └── <b>ru.ts</b>              #  Rusça (300 anahtar)
+│   ├── <b>en.ts</b>              #  İngilizce (355+ anahtar)
+│   ├── <b>fa.ts</b>              #  Farsça (354+ anahtar)
+│   ├── <b>ar.ts</b>              #  Arapça (345+ anahtar)
+│   ├── <b>tr.ts</b>              #  Türkçe (345+ anahtar)
+│   └── <b>ru.ts</b>              #  Rusça (345+ anahtar)
 ├── <b>telegram.ts</b>           #  Telegram API istemcisi — yeniden deneme, parçalama, yüklemeler
 ├── <b>constants.ts</b>          #  Paylaşılan sabitler (hız limitleri, RAG, Piston, vb.)
 ├── <b>model-config.ts</b>       #  Model kaydı, yetenekler, maliyet yapılandırması
@@ -1020,7 +1102,7 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>env.d.ts</b>           #  Ortam arayüzü, Telegram tipleri, UserSettings
 │   └── <b>d1.ts</b>              #  D1 satır tipi tanımları
 ├── <b>handlers/</b>
-│   ├── <b>message.ts</b>        #  Mesaj sınıflandırıcı (metin/fotoğraf/ses/dosya/URL)
+│   ├── <b>message.ts</b>        #  Mesaj sınıflandırıcı + AI yanıt hattı
 │   ├── <b>command.ts</b>        #  Tüm /slash komut uygulamaları
 │   ├── <b>callback.ts</b>       #  Satır içi klavye geri arama yönlendirmesi
 │   ├── <b>admin.ts</b>          #  Yönetici paneli (istatistik, duyuru, engelleme, temizlik)
@@ -1029,7 +1111,9 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>daily.ts</b>          #  Günlük ipuçları cron işleyicisi
 │   ├── <b>reminder.ts</b>       #  Hatırlatıcı sihirbazı + cron işleme
 │   ├── <b>debate.ts</b>         #  Çoklu ajan tartışma sihirbazı
-│   └── <b>inline.ts</b>         #  Satır içi sorgu işleyici
+│   ├── <b>inline.ts</b>         #  Satır içi sorgu işleyici
+│   ├── <b>adapt.ts</b>          #  /adapt & /adapt reset komutları
+│   └── <b>workflow.ts</b>       #  /workflow komutu (create/list/view/run/delete)
 ├── <b>menus/</b>
 │   ├── <b>modeMenu.ts</b>       #  Dinamik karakter/model/dil/klavye menüleri
 │   ├── <b>debateMenu.ts</b>     #  Tartışma akışı klavye menüleri
@@ -1037,19 +1121,25 @@ buildGroupContext(chatId, userId, message)
 ├── <b>modes/</b>
 │   ├── <b>types.ts</b>          #  Mod sistemi tip tanımları
 │   ├── <b>registry.ts</b>       #  Mod kaydı ve arama
-│   └── <b>exam.ts</b>           #  Sınav modu uygulaması
+│   ├── <b>exam.ts</b>           #  Sınav modu uygulaması
+│   ├── <b>quiz.ts</b>           #  Bilgi yarışması modu (6 kategori, seri takibi)
+│   ├── <b>teacher.ts</b>        #  Öğretmen modu (3 seviye, otomatik dersler)
+│   └── <b>brainstorm.ts</b>     #  Beyin fırtınası modu (genişlet/kategorize et/değerlendir/birleştir)
 ├── <b>parsers/</b>
 │   └── <b>htmlParser.ts</b>     #  Markdown → Telegram HTML dönüştürücü
 ├── <b>repositories/</b>
-│   ├── <b>settings.repo.ts</b>  #  Kullanıcı ayarları + migrasyonlar (v1–v21)
+│   ├── <b>settings.repo.ts</b>  #  Kullanıcı ayarları + migrasyonlar (v1–v28)
 │   ├── <b>chat.repo.ts</b>      #  Sohbet geçmişi + grup mesajları
 │   ├── <b>admin.repo.ts</b>     #  Hız sınırlama, engellemeler, analitik, zamanlama
-│   ├── <b>cache.ts</b>          #  Bellek içi TTL önbelleği
+│   ├── <b>cache.ts</b>          #  DB önbellek katmanı (KV destekli TTL önbelleği)
 │   ├── <b>persona.repo.ts</b>   #  Özel karakterler + uyarlama geri bildirimi
 │   ├── <b>debate.repo.ts</b>    #  Tartışma oturumları + mesajlar
 │   ├── <b>reminder.repo.ts</b>  #  Hatırlatıcı CRUD
 │   ├── <b>documents.repo.ts</b> #  RAG belge depolama ve arama
-│   └── <b>memory.repo.ts</b>    #  Bellek özetleri depolama
+│   ├── <b>memory.repo.ts</b>    #  Bellek özetleri depolama
+│   ├── <b>media.repo.ts</b>     #  Medya meta verileri (fotoğraflar, belgeler, ses, vb.)
+│   ├── <b>embeddings.repo.ts</b> #  RAG için vektör gömme
+│   └── <b>workflow.repo.ts</b>  #  İş akışı CRUD
 ├── <b>services/</b>
 │   ├── <b>index.ts</b>          #  Merkezi hizmet katmanı yeniden dışa aktarımları
 │   ├── <b>settings.service.ts</b>  #  Kullanıcı ayarları iş mantığı
@@ -1059,14 +1149,30 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>router.service.ts</b>  #  Mesaj sınıflandırıcı → model yönlendirme
 │   ├── <b>rag.service.ts</b>     #  Metin parçalama, indeksleme, getirme
 │   ├── <b>sandbox.service.ts</b> #  Piston API kod yürütme (20 dil)
-│   └── <b>memory.service.ts</b>  #  AI özetleme ve bağlam hatırlama
+│   ├── <b>memory.service.ts</b>  #  AI özetleme ve bağlam hatırlama
+│   ├── <b>media-pipeline.service.ts</b>  #  Çok modlu medya işleme ve çıktı
+│   └── <b>workflow.service.ts</b>  #  İş akışı yürütme motoru
 └── <b>utils/</b>
     ├── <b>logger.ts</b>         #  İstek ID'leri ile yapılandırılmış JSON günlükleme
+    ├── <b>mutex.ts</b>          #  Yarış koşulu önleme için D1 tabanlı mutex
+    ├── <b>cache.ts</b>          #  3 katmanlı KV önbellek (KV → bellek → DB), yanıt/arama/yanıt önbellekleri
     ├── <b>error.ts</b>          #  AppError hiyerarşisi, güvenli/tekrar deneme sarmalayıcıları
     ├── <b>file.ts</b>           #  Telegram dosya indirme, PDF metin çıkarma
-    ├── <b>cache.ts</b>          #  Bellek içi TTL önbelleği
+    ├── <b>media.ts</b>          #  Fotoğraf/belge/ses/çıkartma/video_notu/konum/kişi işleyicileri
     ├── <b>validate.ts</b>       #  Girdi doğrulama yardımcıları
     └── <b>occasions.ts</b>      #  Günlük ipuçları için tatil/özel gün takvimi
+
+<b>tools/</b>
+├── <b>types.ts</b>              #  ToolDefinition & ToolCall türleri, [TOOL_CALL] işaretçileri
+├── <b>registry.ts</b>           #  Araç kaydı, ayrıştırma, yürütme
+├── <b>index.ts</b>              #  Araç başlatma ve yeniden dışa aktarma
+└── <b>builtins/</b>
+    ├── <b>weather.ts</b>        #  Hava durumu aracı (Open‑Meteo, API anahtarı gerekmez)
+    ├── <b>calculator.ts</b>     #  Matematik hesap makinesi aracı
+    ├── <b>time.ts</b>           #  Saat dilimi / dünya saati aracı
+    ├── <b>define.ts</b>         #  Sözlük aracı
+    ├── <b>crypto.ts</b>         #  Kripto para fiyat aracı
+    └── <b>news.ts</b>           #  Haber başlıkları aracı (NEWS_API_KEY)
 
 <b>config/</b>
 ├── <b>personas.ts</b>           #  68 karakter tanımı (her biri 5 dilde)
@@ -1210,6 +1316,46 @@ curl http://localhost:8787/setWebhook
   <tr>
     <td>14</td>
     <td>Performans — akış etrafında enstrümantasyon + girdi sertleştirme</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>15</td>
+    <td>Araç Kullanımı (Fonksiyon Çağırma) — hava durumu, hesap makinesi, sözlük, kripto, haber, saat dilimi (ReAct döngüsü ile)</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>16</td>
+    <td>Çok Modlu Hat — medya meta veri depolama, [GENERATE_IMAGE] ve [GENERATE_SPEECH] çıktısı, düzenlenmiş_mesaj desteği</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>17</td>
+    <td>Prompt Zincirleri / İş Akışları — create/list/view/run/delete, değişken ikamesi ile</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>18</td>
+    <td>Modlar — Bilgi Yarışması (6 kategori), Öğretmen (3 seviye), Beyin Fırtınası (genişlet/kategorize et/değerlendir/birleştir)</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>19</td>
+    <td>Uyarlanabilir Karakter v2 — 5 özellikli yapılandırılmış analiz, /adapt profil görselleştirmesi</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>20</td>
+    <td>Vektör RAG — gömme tabanlı anlamsal arama, kosinüs benzerliği puanlaması ile</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>21</td>
+    <td>KV Önbellek Katmanı — 3 katmanlı önbellekleme (KV → bellek → DB), isteğe bağlı KV_CACHE bağlantısı</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>22</td>
+    <td>Mesaj Mutex — D1 tabanlı kilit, eşzamanlı işleme yarış koşullarını önler</td>
     <td align="center">✅</td>
   </tr>
 </table>

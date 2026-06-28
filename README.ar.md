@@ -1,13 +1,13 @@
-<div align="center">
+﻿<div align="center">
   <br/>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
-    <img alt="بوت تليغرام للذكاء الاصطناعي" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
+    <img alt="بوت تليغرام للذكاء الاصطناعي" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
   </picture>
 
   <br/><br/>
 
-  <p><strong>بدون خادم • آمن من حيث الأنواع • متعدد اللغات • ٦٨ شخصية • RAG • بيئة تشغيل الكود</strong></p>
+  <p><strong>بدون خادم • آمن من حيث الأنواع • متعدد اللغات • ٦٨ شخصية • RAG • بيئة تشغيل الكود • استخدام الأدوات • الأوضاع</strong></p>
 
   <p>
     مساعد ذكاء اصطناعي من الدرجة الإنتاجية لتليغرام يعمل بالكامل على Cloudflare Workers.<br/>
@@ -166,6 +166,42 @@
   <tr>
     <td align="center">🏷️</td>
     <td><strong>ملصق / موقع / جهة اتصال</strong><br/><sub>دعم أنواع الرسائل متعددة الوسائط</sub></td>
+    <td align="center">🔧</td>
+    <td><strong>استخدام الأدوات (استدعاء الدوال)</strong><br/><sub>الطقس، الآلة الحاسبة، القاموس، العملات الرقمية، الأخبار، المنطقة الزمنية (مع حلقة ReAct)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">📋</td>
+    <td><strong>السلاسل النصية / سير العمل</strong><br/><sub>مهام AI متعددة الخطوات مع استبدال المتغيرات</sub></td>
+    <td align="center">📝</td>
+    <td><strong>وضع الاختبار</strong><br/><sub>6 فئات، تتبع التسلسل، التسجيل</sub></td>
+  </tr>
+  <tr>
+    <td align="center">👨‍🏫</td>
+    <td><strong>وضع المعلم</strong><br/><sub>3 مستويات، دروس آلية مع تمارين وملخصات</sub></td>
+    <td align="center">💡</td>
+    <td><strong>وضع العصف الذهني</strong><br/><sub>توسيع الأفكار، تصنيفها، تقييمها ودمجها</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🧬</td>
+    <td><strong>RAG المتجه</strong><br/><sub>بحث دلالي قائم على التضمين مع تشابه جيب التمام</sub></td>
+    <td align="center">🔊</td>
+    <td><strong>تحويل النص إلى كلام متعدد اللغات</strong><br/><sub>اختيار النموذج حسب اللغة (EN, PT, ES, JA, FA, AR)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🎨</td>
+    <td><strong>صور AI في الردود</strong><br/><sub>إنشاء صور تلقائيًا من علامات <code>[GENERATE_IMAGE]</code></sub></td>
+    <td align="center">🗣️</td>
+    <td><strong>كلام AI في الردود</strong><br/><sub>إنشاء كلام تلقائيًا من علامات <code>[GENERATE_SPEECH]</code></sub></td>
+  </tr>
+  <tr>
+    <td align="center">✏️</td>
+    <td><strong>دعم الرسائل المعدلة</strong><br/><sub>AI يعيد الرد عندما يعدل المستخدم رسالته</sub></td>
+    <td align="center">⚡</td>
+    <td><strong>طبقة ذاكرة تخزين مؤقت KV</strong><br/><sub>3 مستويات اختيارية (KV ← ذاكرة ← DB)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🔒</td>
+    <td><strong>قفل الرسالة</strong><br/><sub>قفل قائم على D1 يمنع حالات السباق</sub></td>
     <td align="center"></td>
     <td></td>
   </tr>
@@ -218,6 +254,7 @@
       <code>npx wrangler secret put TELEGRAM_BOT_TOKEN</code><br/>
       <code>npx wrangler secret put BRAVE_API_KEY</code>  <i>(اختياري)</i><br/>
       <code>npx wrangler secret put GOOGLE_GEMINI_API_KEY</code>  <i>(اختياري)</i><br/>
+      <code>npx wrangler secret put NEWS_API_KEY</code>  <i>(اختياري)</i><br/>
       <code>npx wrangler secret put WEBHOOK_SECRET</code> <i>(اختياري)</i><br/>
       <code>npx wrangler secret put ADMIN_IDS</code>     <i>(اختياري)</i>
     </td>
@@ -260,8 +297,9 @@
    - `WORKER_DOMAIN` — `your-worker-name.your-subdomain.workers.dev`
    - `ADMIN_IDS` — معرف مستخدم تليغرام الخاص بك (اختياري)
    - `BRAVE_API_KEY` — للبحث على الويب (اختياري)
-   - `GOOGLE_GEMINI_API_KEY` — لنماذج Gemini (اختياري)
-   - `WEBHOOK_SECRET` — للتحقق من webhook (اختياري)
+    - `GOOGLE_GEMINI_API_KEY` — لنماذج Gemini (اختياري)
+    - `NEWS_API_KEY` — مفتاح API لأخبار NewsAPI للأداة (اختياري)
+    - `WEBHOOK_SECRET` — للتحقق من webhook (اختياري)
    - `BOT_NAME` — اسم مخصص للبوت (اختياري)
    - `BOT_DESCRIPTION` — تعليمات إضافية للنظام (اختياري)
 
@@ -444,6 +482,41 @@
     <td><code>/feedback</code></td>
     <td><code>&lt;message&gt;</code></td>
     <td>إرسال ملاحظات</td>
+  </tr>
+  <tr>
+    <td><code>/tools</code></td>
+    <td>—</td>
+    <td>تبديل استخدام الأدوات (الطقس، الحاسبة، القاموس، العملات الرقمية، الأخبار، المنطقة الزمنية)</td>
+  </tr>
+  <tr>
+    <td><code>/workflow</code></td>
+    <td><code>create &lt;n&gt; | &lt;s1&gt; | ...</code> · <code>list</code> · <code>view</code> · <code>run</code> · <code>delete</code></td>
+    <td>إنشاء وتشغيل سلاسل تعليمات متعددة الخطوات</td>
+  </tr>
+  <tr>
+    <td><code>/mode_quiz</code></td>
+    <td>—</td>
+    <td>بدء وضع الاختبار (6 فئات، تتبع التسلسل)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_teacher</code></td>
+    <td>—</td>
+    <td>بدء وضع المعلم (3 مستويات، دروس آلية)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_brainstorm</code></td>
+    <td>—</td>
+    <td>بدء وضع العصف الذهني (توسيع، تصنيف، تقييم، دمج الأفكار)</td>
+  </tr>
+  <tr>
+    <td><code>/adapt</code></td>
+    <td>—</td>
+    <td>عرض ملف الشخصية التكيفية والسمات</td>
+  </tr>
+  <tr>
+    <td><code>/adapt reset</code></td>
+    <td>—</td>
+    <td>إعادة تعيين بيانات تعلم الشخصية التكيفية</td>
   </tr>
   <tr>
     <td><code>/admin</code></td>
@@ -707,17 +780,20 @@
 <h3>تدفق البيانات</h3>
 
 <pre>
-  ① Telegram → POST /  (verified via secret_token)
-  ② index.ts → parse JSON, validate payload
-  ③ message.ts → classify: text / photo / voice / file / URL / command
-  ④ db.ts → load user settings (persona, model, session, language)
-  ⑤ ai.ts → build system prompt + retrieve recent chat history
-  ⑥ Workers AI → run inference (LLM / vision / Whisper / SDXL)
-  ⑦ htmlParser.ts → convert Markdown → Telegram HTML
-  ⑧ telegram.ts → send formatted response + feedback buttons
-  ⑨ db.ts → persist user message + AI response to D1
+  ① Telegram → POST /  (تم التحقق عبر secret_token)
+  ② index.ts → إزالة التكرار عبر ذاكرة التخزين المؤقت update_id + initCache(env)
+  ③ message.ts → تصنيف: نص / صورة / صوت / ملف / URL / أمر / ملصق / فيديو_ملاحظة / موقع / جهة اتصال / رسالة_معدلة
+     ④ media-pipeline → processMedia(): تنزيل، حفظ البيانات الوصفية في D1، بناء السياق
+  ⑤ تحميل الإعدادات (الشخصية، النموذج، الجلسة، اللغة، الأدوات، الوضع، التصويت، التوجيه) + RAG (متجه أو LIKE) + ملخص الذاكرة + تكيف الشخصية
+     ⑥ تمكين_الأدوات → حقن أوصاف الأدوات (الطقس، الحاسبة، العملات الرقمية، إلخ.)
+  ⑦ ai.ts → بناء التعليمات النظامية + استرداد آخر سجل محادثة
+  ⑧ Workers AI → تشغيل الاستدلال مع حلقة إعادة توجيه الأدوات الاختيارية (حتى 5 جولات)
+  ⑨ معالجة لاحقة: [GENERATE_IMAGE] → SDXL · [GENERATE_SPEECH] → TTS · [TOOL_CALL] → تنفيذ الأداة
+    ⑩ htmlParser.ts → تحويل Markdown إلى HTML تليغرام
+    ⑪ telegram.ts → إرسال رد منسق + أزرار التغذية الراجعة
+    ⑫ حفظ رسالة المستخدم ورد AI في D1
+    ⑬ recordInteraction() → تحليل سمات الشخصية التكيفية (كل 15 رسالة)
 </pre>
-
 <h3>الرصة التقنية</h3>
 
 <table>
@@ -936,9 +1012,14 @@ buildGroupContext(chatId, userId, message)
     <td align="center">—</td>
     <td>مفتاح API Google AI Studio لنماذج Gemini (<a href="https://aistudio.google.com/apikey">احصل عليه</a>)</td>
   </tr>
+  <tr>
+    <td><code>NEWS_API_KEY</code></td>
+    <td align="center">—</td>
+    <td>مفتاح API لأداة الأخبار من <a href="https://newsapi.org/">NewsAPI</a></td>
+  </tr>
 </table>
 
-<p>ربط D1 باسم <code>DB</code> وربط Workers AI باسم <code>AI</code> مطلوبان. يتم إنشاء مخطط قاعدة البيانات (١٢ جدول) تلقائيًا عند أول <code>/init</code> عبر نظام الترحيل المدمج.</p>
+<p>ربط D1 باسم <code>DB</code> وربط Workers AI باسم <code>AI</code> مطلوبان. اختياريًا، ربط مساحة أسماء KV باسم <code>KV_CACHE</code> يتيح التخزين المؤقت المستمر عبر العُزل. يتم إنشاء مخطط قاعدة البيانات (١٦+ جدول) تلقائيًا عند أول <code>/init</code> عبر نظام الترحيل المدمج (v1–v28).</p>
 
 ---
 
@@ -1020,63 +1101,86 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>env.d.ts</b>           #  Env interface, Telegram types, UserSettings
 │   └── <b>d1.ts</b>              #  D1 row type definitions
 ├── <b>handlers/</b>
-│   ├── <b>message.ts</b>        #  Message classifier (text/photo/voice/file/URL)
-│   ├── <b>command.ts</b>        #  All /slash command implementations
-│   ├── <b>callback.ts</b>       #  Inline keyboard callback routing
-│   ├── <b>admin.ts</b>          #  Admin panel (stats, broadcast, blocks, cleanup)
-│   ├── <b>session.ts</b>        #  Multi-session management
-│   ├── <b>persona.ts</b>        #  Custom persona creation
-│   ├── <b>daily.ts</b>          #  Daily tips management
-│   ├── <b>reminder.ts</b>       #  Reminder wizard + cron processing
-│   ├── <b>debate.ts</b>         #  Multi-agent debate wizard
-│   └── <b>inline.ts</b>         #  Inline query handler
+│   ├── <b>message.ts</b>        #  مصنف الرسائل + خط أنابيب استجابة AI
+│   ├── <b>command.ts</b>        #  جميع أوامر /slash
+│   ├── <b>callback.ts</b>       #  توجيه أزرار لوحة المفاتيح المضمنة
+│   ├── <b>admin.ts</b>          #  لوحة الإدارة (الإحصائيات، البث، الحظر، التنظيف)
+│   ├── <b>session.ts</b>        #  إدارة الجلسات المتعددة
+│   ├── <b>persona.ts</b>        #  إنشاء الشخصيات المخصصة
+│   ├── <b>daily.ts</b>          #  إدارة النصائح اليومية
+│   ├── <b>reminder.ts</b>       #  معالج التذكيرات + cron
+│   ├── <b>debate.ts</b>         #  معالج المناظرات متعددة العوامل
+│   ├── <b>inline.ts</b>         #  معالج الاستعلام المضمن
+│   ├── <b>adapt.ts</b>          #  أوامر /adapt و /adapt reset
+│   └── <b>workflow.ts</b>       #  أمر /workflow (create/list/view/run/delete)
 ├── <b>menus/</b>
-│   ├── <b>modeMenu.ts</b>       #  Dynamic persona/model/language/keyboard menus
-│   ├── <b>debateMenu.ts</b>     #  Debate flow keyboard menus
-│   └── <b>reminderMenu.ts</b>   #  Reminder date/time picker and repeat menus
+│   ├── <b>modeMenu.ts</b>       #  قوائم ديناميكية للشخصية/النموذج/اللغة/لوحة المفاتيح
+│   ├── <b>debateMenu.ts</b>     #  قوائم لوحة المفاتيح لتدفق المناظرة
+│   └── <b>reminderMenu.ts</b>   #  قوائم منتقي التاريخ/الوقت والتكرار
 ├── <b>modes/</b>
-│   ├── <b>types.ts</b>          #  Mode system type definitions
-│   ├── <b>registry.ts</b>       #  Mode registry & lookup
-│   └── <b>exam.ts</b>           #  Exam mode implementation
+│   ├── <b>types.ts</b>          #  تعريفات أنواع نظام الأوضاع
+│   ├── <b>registry.ts</b>       #  سجل الأوضاع والبحث
+│   ├── <b>exam.ts</b>           #  تطبيق وضع الاختبار
+│   ├── <b>quiz.ts</b>           #  وضع الاختبار (6 فئات، تتبع التسلسل)
+│   ├── <b>teacher.ts</b>        #  وضع المعلم (3 مستويات، دروس آلية)
+│   └── <b>brainstorm.ts</b>     #  وضع العصف الذهني (توسيع/تصنيف/تقييم/دمج)
 ├── <b>parsers/</b>
-│   └── <b>htmlParser.ts</b>     #  Markdown → Telegram HTML converter
+│   └── <b>htmlParser.ts</b>     #  تحويل Markdown → HTML تليغرام
 ├── <b>repositories/</b>
-│   ├── <b>settings.repo.ts</b>  #  User settings + migrations (v1–v21)
-│   ├── <b>chat.repo.ts</b>      #  Chat history + group messages
-│   ├── <b>admin.repo.ts</b>     #  Rate limiting, blocks, analytics, timing
-│   ├── <b>cache.ts</b>          #  In-memory TTL cache
-│   ├── <b>persona.repo.ts</b>   #  Custom personas + adaptation feedback
-│   ├── <b>debate.repo.ts</b>    #  Debate sessions + messages
-│   ├── <b>reminder.repo.ts</b>  #  Reminders CRUD
-│   ├── <b>documents.repo.ts</b> #  RAG document storage & search
-│   └── <b>memory.repo.ts</b>    #  Memory summaries storage
+│   ├── <b>settings.repo.ts</b>  #  إعدادات المستخدم + الترحيلات (v1–v28)
+│   ├── <b>chat.repo.ts</b>      #  سجل المحادثة + رسائل المجموعة
+│   ├── <b>admin.repo.ts</b>     #  تحديد المعدل، الحظر، التحليلات، التوقيت
+│   ├── <b>cache.ts</b>          #  طبقة ذاكرة تخزين مؤقت DB (KV-backed TTL cache)
+│   ├── <b>persona.repo.ts</b>   #  الشخصيات المخصصة + ملاحظات التكيف
+│   ├── <b>debate.repo.ts</b>    #  جلسات المناظرة + الرسائل
+│   ├── <b>reminder.repo.ts</b>  #  CRUD التذكيرات
+│   ├── <b>documents.repo.ts</b> #  تخزين وبحث مستندات RAG
+│   ├── <b>memory.repo.ts</b>    #  تخزين ملخصات الذاكرة
+│   ├── <b>media.repo.ts</b>     #  البيانات الوصفية للوسائط (صور، مستندات، صوت، إلخ.)
+│   ├── <b>embeddings.repo.ts</b> #  التضمينات المتجهة لـ RAG
+│   └── <b>workflow.repo.ts</b>  #  CRUD سير العمل
 ├── <b>services/</b>
-│   ├── <b>index.ts</b>          #  Centralized service-layer re-exports
-│   ├── <b>settings.service.ts</b>  #  User settings business logic
-│   ├── <b>debate.service.ts</b>    #  Debate orchestration logic
-│   ├── <b>ensemble.service.ts</b>  #  Parallel model query + judge selection
-│   ├── <b>persona-adaptive.service.ts</b>  #  AI trait extraction from feedback
-│   ├── <b>router.service.ts</b>  #  Message classifier → model routing
-│   ├── <b>rag.service.ts</b>     #  Text chunking, indexing, retrieval
-│   ├── <b>sandbox.service.ts</b> #  Piston API code execution (20 languages)
-│   └── <b>memory.service.ts</b>  #  AI summarization & context recall
+│   ├── <b>index.ts</b>          #  إعادة تصدير مركزية لطبقة الخدمات
+│   ├── <b>settings.service.ts</b>  #  منطق أعمال إعدادات المستخدم
+│   ├── <b>debate.service.ts</b>    #  منطق تنسيق المناظرة
+│   ├── <b>ensemble.service.ts</b>  #  استعلام نماذج متوازي + اختيار الحكم
+│   ├── <b>persona-adaptive.service.ts</b>  #  استخراج سمات AI من الملاحظات
+│   ├── <b>router.service.ts</b>  #  مصنف الرسائل → توجيه النموذج
+│   ├── <b>rag.service.ts</b>     #  تقسيم النص، الفهرسة، الاسترجاع
+│   ├── <b>sandbox.service.ts</b> #  تنفيذ الكود عبر Piston API (20 لغة)
+│   ├── <b>memory.service.ts</b>  #  تلخيص AI واستدعاء السياق
+│   ├── <b>media-pipeline.service.ts</b>  #  معالجة الوسائط متعددة الأنواع والإخراج
+│   └── <b>workflow.service.ts</b>  #  محرك تنفيذ سير العمل
 └── <b>utils/</b>
-    ├── <b>logger.ts</b>         #  Structured JSON logging with request IDs
-    ├── <b>error.ts</b>          #  AppError hierarchy, safe/retry wrappers
-    ├── <b>file.ts</b>           #  Telegram file download, PDF text extraction
-    ├── <b>cache.ts</b>          #  In-memory TTL cache
-    ├── <b>validate.ts</b>       #  Input validation helpers
-    └── <b>occasions.ts</b>      #  Occasions calendar for daily tips
+    ├── <b>logger.ts</b>         #  تسجيل JSON منظم مع معرفات الطلب
+    ├── <b>mutex.ts</b>          #  قفل قائم على D1 لمنع حالات السباق
+    ├── <b>cache.ts</b>          #  ذاكرة تخزين مؤقت KV ثلاثية المستويات (KV ← ذاكرة ← DB)
+    ├── <b>error.ts</b>          #  تسلسل AppError، أغلفة آمنة/إعادة محاولة
+    ├── <b>file.ts</b>           #  تنزيل ملفات تليغرام، استخراج نصوص PDF
+    ├── <b>media.ts</b>          #  معالجات الصور/المستندات/الصوت/الملصق/فيديو/موقع/جهة اتصال
+    ├── <b>validate.ts</b>       #  أدوات التحقق من الإدخال
+    └── <b>occasions.ts</b>      #  تقويم المناسبات للنصائح اليومية
+
+<b>tools/</b>
+├── <b>types.ts</b>              #  تعريفات ToolDefinition و ToolCall، علامات [TOOL_CALL]
+├── <b>registry.ts</b>           #  تسجيل الأدوات، التحليل، التنفيذ
+├── <b>index.ts</b>              #  تهيئة الأدوات وإعادة التصدير
+└── <b>builtins/</b>
+    ├── <b>weather.ts</b>        #  أداة الطقس (Open‑Meteo، لا يحتاج مفتاح API)
+    ├── <b>calculator.ts</b>     #  أداة الآلة الحاسبة
+    ├── <b>time.ts</b>           #  أداة المنطقة الزمنية / الساعة العالمية
+    ├── <b>define.ts</b>         #  أداة القاموس
+    ├── <b>crypto.ts</b>         #  أداة أسعار العملات الرقمية
+    └── <b>news.ts</b>           #  أداة الأخبار (NEWS_API_KEY)
 
 <b>config/</b>
-├── <b>personas.ts</b>           #  68 persona definitions (5 languages each)
-└── <b>persona-emojis.ts</b>     #  Emoji mappings for persona thinking states
+├── <b>personas.ts</b>           #  68 تعريف شخصية (5 لغات لكل منها)
+└── <b>persona-emojis.ts</b>     #  تعيينات الرموز التعبيرية لحالات تفكير الشخصية
 
 <b>tests/</b>
-├── <b>unit/</b>                 #  164 unit tests (all modules)
-└── <b>integration/</b>          #  9 integration tests (webhook flow)
+├── <b>unit/</b>                 #  164 اختبار وحدة (جميع الوحدات)
+└── <b>integration/</b>          #  9 اختبارات تكامل (تدفق webhook)
 </pre>
-
 </details>
 
 ---
@@ -1210,6 +1314,46 @@ curl http://localhost:8787/setWebhook
   <tr>
     <td>١٤</td>
     <td>أداء — قياسات حول التدفق + تقوية الإدخال</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>١٥</td>
+    <td>استخدام الأدوات (استدعاء الدوال) — الطقس، الآلة الحاسبة، القاموس، العملات الرقمية، الأخبار، المنطقة الزمنية مع حلقة ReAct</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>١٦</td>
+    <td>خط أنابيب متعدد الوسائط — تخزين البيانات الوصفية للوسائط، [GENERATE_IMAGE] و [GENERATE_SPEECH]، دعم الرسائل المعدلة</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>١٧</td>
+    <td>السلاسل النصية / سير العمل — create/list/view/run/delete مع استبدال المتغيرات</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>١٨</td>
+    <td>الأوضاع — اختبار (6 فئات)، معلم (3 مستويات)، عصف ذهني (توسيع/تصنيف/تقييم/دمج)</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>١٩</td>
+    <td>الشخصية التكيفية v2 — تحليل 5 سمات منظم، عرض ملف /adapt</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>٢٠</td>
+    <td>RAG المتجه — بحث دلالي قائم على التضمين مع تسجيل تشابه جيب التمام</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>٢١</td>
+    <td>طبقة ذاكرة تخزين مؤقت KV — 3 مستويات (KV ← ذاكرة ← DB)، ربط KV_CACHE اختياري</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>٢٢</td>
+    <td>قفل الرسالة — قفل قائم على D1 يمنع حالات السباق في المعالجة المتزامنة</td>
     <td align="center">✅</td>
   </tr>
 </table>
