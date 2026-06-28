@@ -10,6 +10,7 @@ export {
   setTimezone, toggleDailyTips, getDailyTipsEnabled,
   createSession, getSessions,
   setActiveMode, setModeData, getModeState, clearModeState,
+  setToolsEnabled,
 } from '../repositories/settings.repo.ts';
 
 export {
@@ -36,6 +37,7 @@ export {
   createReminder, getReminders, getAllReminders,
   markReminderSent, cancelReminder, deleteReminder,
   getDueReminders, rescheduleReminder, getReminderCount,
+  savePendingReminder, getPendingReminder, deletePendingReminder,
 } from '../repositories/reminder.repo.ts';
 
 export {
@@ -53,3 +55,8 @@ export type { RequestType } from './router.service.ts';
 export { indexText, getRagContext, clearKnowledge, getKnowledgeCount } from './rag.service.ts';
 export { executeCode, getSupportedLanguages } from './sandbox.service.ts';
 export { generateAndStoreSummary, getMemoryContext, clearMemorySummaries, shouldSummarize, getOldMessages } from './memory.service.ts';
+export { processMedia, processUrlsInMessage, buildMultiModalContext, clearMultiModal, parseMultiModalOutput, handleMultiModalOutput } from './media-pipeline.service.ts';
+export { getRecentMedia, saveMediaMetadata, clearMediaMetadata, getMediaByType } from '../repositories/media.repo.ts';
+export { executeWorkflow } from './workflow.service.ts';
+export { generateEmbedding } from '../ai.ts';
+export { recordInteraction, getAdaptationSummary, resetAdaptation } from './persona-adaptive.service.ts';

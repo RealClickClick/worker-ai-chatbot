@@ -3,9 +3,9 @@ import type { SettingsRow, SessionRow } from '../types/d1.ts';
 import { logger } from '../utils/logger.ts';
 import { cacheGet, cacheSet, cacheDel, bumpCacheGen, CACHE_TTL } from './cache.ts';
 
-const DEFAULT: Readonly<SettingsRow> = Object.freeze({ persona: 'standard', response_length: 'short', ai_model: 'fast', lang: null, custom_instructions: null, bot_name: null, active_session: 'default', programming_lang: null, memory_enabled: 1, formatting: 'markdown', feedback_enabled: 1, img_model: 'sdxl', daily_tips_enabled: 0, timezone: 'UTC', translate_source: null, translate_target: null, translate_pending: null, translate_enabled: 0, ensemble_enabled: 0, ensemble_models: null, ensemble_strategy: 'judge', active_mode: null, mode_data: null });
+const DEFAULT: Readonly<SettingsRow> = Object.freeze({ persona: 'standard', response_length: 'short', ai_model: 'fast', lang: null, custom_instructions: null, bot_name: null, active_session: 'default', programming_lang: null, memory_enabled: 1, formatting: 'markdown', feedback_enabled: 1, img_model: 'sdxl', daily_tips_enabled: 0, timezone: 'UTC', translate_source: null, translate_target: null, translate_pending: null, translate_enabled: 0, ensemble_enabled: 0, ensemble_models: null, ensemble_strategy: 'judge', active_mode: null, mode_data: null, tools_enabled: 0 });
 
-const SETTING_COLS: string[] = ['persona', 'response_length', 'ai_model', 'lang', 'custom_instructions', 'bot_name', 'active_session', 'programming_lang', 'memory_enabled', 'formatting', 'feedback_enabled', 'img_model', 'daily_tips_enabled', 'timezone', 'translate_source', 'translate_target', 'translate_pending', 'translate_enabled', 'ensemble_enabled', 'ensemble_models', 'ensemble_strategy', 'active_mode', 'mode_data'];
+const SETTING_COLS: string[] = ['persona', 'response_length', 'ai_model', 'lang', 'custom_instructions', 'bot_name', 'active_session', 'programming_lang', 'memory_enabled', 'formatting', 'feedback_enabled', 'img_model', 'daily_tips_enabled', 'timezone', 'translate_source', 'translate_target', 'translate_pending', 'translate_enabled', 'ensemble_enabled', 'ensemble_models', 'ensemble_strategy', 'active_mode', 'mode_data', 'tools_enabled'];
 
 // === Init / Migrations ===
 
@@ -322,6 +322,93 @@ const MIGRATIONS = [
       `ALTER TABLE user_settings ADD COLUMN mode_data TEXT DEFAULT NULL`,
     ],
   },
+  {
+    version: 22,
+    description: 'Create pending_reminders table for wizard state persistence',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS pending_reminders (
+        chat_id TEXT PRIMARY KEY,
+        step TEXT NOT NULL DEFAULT 'title',
+        title TEXT NOT NULL DEFAULT '',
+        year INTEGER NOT NULL DEFAULT 0,
+        month INTEGER NOT NULL DEFAULT 0,
+        selected_date TEXT,
+        selected_hour TEXT,
+        selected_minute TEXT,
+        selected_time TEXT,
+        recurrence TEXT NOT NULL DEFAULT 'none',
+        lang TEXT NOT NULL DEFAULT 'en',
+        timezone TEXT NOT NULL DEFAULT 'UTC',
+        updated_at TEXT DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    version: 23,
+    description: 'Add tools_enabled column to user_settings for Tool-Use (Function Calling)',
+    statements: [
+      `ALTER TABLE user_settings ADD COLUMN tools_enabled INTEGER DEFAULT 0`,
+    ],
+  },
+  {
+    version: 24,
+    description: 'Create media_metadata table for Multi-modal Pipeline',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS media_metadata (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id TEXT NOT NULL,
+        session_id TEXT NOT NULL DEFAULT 'default',
+        media_type TEXT NOT NULL,
+        file_id TEXT,
+        description TEXT NOT NULL DEFAULT '',
+        caption TEXT NOT NULL DEFAULT '',
+        mime_type TEXT,
+        file_size INTEGER,
+        created_at TEXT DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_media_chat_session ON media_metadata(chat_id, session_id, created_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_media_chat_type ON media_metadata(chat_id, media_type, created_at)`,
+    ],
+  },
+  {
+    version: 25,
+    description: 'Create workflows table for Prompt Chains / Workflows',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS workflows (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        steps TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(chat_id, name)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_workflows_chat ON workflows(chat_id, name)`,
+    ],
+  },
+  {
+    version: 26,
+    description: 'Create embeddings table for Vector RAG',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS embeddings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id TEXT NOT NULL,
+        document_id INTEGER NOT NULL,
+        chunk_index INTEGER NOT NULL DEFAULT 0,
+        content TEXT NOT NULL,
+        vector TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_embeddings_chat ON embeddings(chat_id)`,
+    ],
+  },
+  {
+    version: 27,
+    description: 'Add interaction_count to persona_adaptation for Adaptive Persona',
+    statements: [
+      `ALTER TABLE persona_adaptation ADD COLUMN interaction_count INTEGER DEFAULT 0`,
+    ],
+  },
 ];
 
 export async function initDB(env: Env): Promise<void> {
@@ -382,14 +469,14 @@ export async function getSettings(env: Env, chatId: number | string, userId?: nu
   if (!env.DB) return { ...DEFAULT };
   const key = settingsKey(chatId, userId);
   const cacheKey = `settings:${key}`;
-  const cached = cacheGet<SettingsRow>(cacheKey);
+  const cached = await cacheGet<SettingsRow>(cacheKey);
   if (cached) return cached;
   try {
     const row = await env.DB.prepare(
-      'SELECT persona, response_length, ai_model, lang, custom_instructions, bot_name, active_session, programming_lang, memory_enabled, formatting, feedback_enabled, img_model, daily_tips_enabled, timezone, translate_source, translate_target, translate_pending, translate_enabled, ensemble_enabled, ensemble_models, ensemble_strategy, active_mode, mode_data FROM user_settings WHERE chat_id = ?'
+      'SELECT persona, response_length, ai_model, lang, custom_instructions, bot_name, active_session, programming_lang, memory_enabled, formatting, feedback_enabled, img_model, daily_tips_enabled, timezone, translate_source, translate_target, translate_pending, translate_enabled, ensemble_enabled, ensemble_models, ensemble_strategy, active_mode, mode_data, tools_enabled FROM user_settings WHERE chat_id = ?'
     ).bind(key).first<SettingsRow | null>();
     const result: SettingsRow = row ? { ...DEFAULT, ...row } : { ...DEFAULT };
-    cacheSet<SettingsRow>(cacheKey, result, CACHE_TTL.settings);
+    await cacheSet<SettingsRow>(cacheKey, result, CACHE_TTL.settings);
     return result;
   } catch (e: any) {
     logger.error('DB getSettings error', { chatId, userId, error: e.message });
@@ -411,7 +498,7 @@ async function upsertSetting(env: Env, chatId: number | string, field: string, v
        VALUES (?, ${placeholders})
        ON CONFLICT(chat_id) DO UPDATE SET ${field} = excluded.${field}`
     ).bind(key, ...SETTING_COLS.map(c => vals[c])).run();
-    cacheDel(`settings:${key}`);
+    await cacheDel(`settings:${key}`);
     bumpCacheGen();
   } catch (e: any) { logger.error('DB upsertSetting error', { chatId, userId, field, error: e.message }); }
 }
@@ -430,6 +517,7 @@ export async function setBotName(env: Env, chatId: number | string, name: string
 export async function setEnsembleEnabled(env: Env, chatId: number | string, enabled: number, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'ensemble_enabled', enabled, userId); }
 export async function setEnsembleModels(env: Env, chatId: number | string, models: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'ensemble_models', models, userId); }
 export async function setEnsembleStrategy(env: Env, chatId: number | string, strategy: string, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'ensemble_strategy', strategy, userId); }
+export async function setToolsEnabled(env: Env, chatId: number | string, enabled: number, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'tools_enabled', enabled, userId); }
 export async function setActiveSession(env: Env, chatId: number | string, sessionId: string, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'active_session', sessionId, userId); }
 export async function setProgrammingLang(env: Env, chatId: number | string, lang: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'programming_lang', lang, userId); }
 export async function setActiveMode(env: Env, chatId: number | string, mode: string | null, userId?: number): Promise<void> { await upsertSetting(env, chatId, 'active_mode', mode, userId); }
@@ -523,8 +611,12 @@ export async function cleanupOldData(env: Env, daysOld = 30): Promise<number> {
     const result = await env.DB.prepare(
       "DELETE FROM chat_history WHERE created_at < datetime('now', '-' || ? || ' days')"
     ).bind(daysOld).run();
-    logger.info('Cleanup completed', { daysOld, deleted: result?.meta?.changes || 0 });
-    return result?.meta?.changes || 0;
+    await env.DB.prepare(
+      "DELETE FROM media_metadata WHERE created_at < datetime('now', '-' || ? || ' days')"
+    ).bind(daysOld).run();
+    const total = result?.meta?.changes || 0;
+    logger.info('Cleanup completed', { daysOld, deleted: total });
+    return total;
   } catch (e: any) {
     logger.error('Cleanup failed', { error: e.message });
     return 0;

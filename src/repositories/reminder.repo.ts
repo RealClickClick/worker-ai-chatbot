@@ -1,5 +1,5 @@
 import type { Env } from '../types/env.d.ts';
-import type { ReminderRow, CountRow } from '../types/d1.ts';
+import type { ReminderRow, CountRow, PendingReminderRow } from '../types/d1.ts';
 import { logger } from '../utils/logger.ts';
 
 export function getTimezoneOffset(timezone: string, date: Date = new Date()): number {
@@ -125,6 +125,56 @@ export async function rescheduleReminder(env: Env, id: number, recurrence: strin
       "UPDATE reminders SET reminder_date = ?, status = 'pending' WHERE id = ?"
     ).bind(nextDate, id).run();
   } catch (e: any) { logger.error('DB rescheduleReminder error', { id, error: e.message }); }
+}
+
+// === Pending Reminder Wizard Persistence ===
+
+export async function savePendingReminder(env: Env, chatId: number | string, data: {
+  step: string; title: string; year: number; month: number;
+  selectedDate: string | null; selectedHour: string | null;
+  selectedMinute: string | null; selectedTime: string | null;
+  recurrence: string; lang: string; timezone: string;
+}): Promise<void> {
+  if (!env.DB) return;
+  try {
+    await env.DB.prepare(
+      `INSERT INTO pending_reminders (chat_id, step, title, year, month, selected_date, selected_hour, selected_minute, selected_time, recurrence, lang, timezone, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(chat_id) DO UPDATE SET
+         step = excluded.step, title = excluded.title, year = excluded.year,
+         month = excluded.month, selected_date = excluded.selected_date,
+         selected_hour = excluded.selected_hour, selected_minute = excluded.selected_minute,
+         selected_time = excluded.selected_time, recurrence = excluded.recurrence,
+         lang = excluded.lang, timezone = excluded.timezone,
+         updated_at = datetime('now')`
+    ).bind(String(chatId), data.step, data.title, data.year, data.month,
+      data.selectedDate, data.selectedHour, data.selectedMinute,
+      data.selectedTime, data.recurrence, data.lang, data.timezone).run();
+  } catch (e: any) {
+    logger.error('DB savePendingReminder error', { chatId, error: e.message });
+  }
+}
+
+export async function getPendingReminder(env: Env, chatId: number | string): Promise<PendingReminderRow | null> {
+  if (!env.DB) return null;
+  try {
+    const row = await env.DB.prepare(
+      'SELECT * FROM pending_reminders WHERE chat_id = ?'
+    ).bind(String(chatId)).first<PendingReminderRow | null>();
+    return row || null;
+  } catch (e: any) {
+    logger.error('DB getPendingReminder error', { chatId, error: e.message });
+    return null;
+  }
+}
+
+export async function deletePendingReminder(env: Env, chatId: number | string): Promise<void> {
+  if (!env.DB) return;
+  try {
+    await env.DB.prepare('DELETE FROM pending_reminders WHERE chat_id = ?').bind(String(chatId)).run();
+  } catch (e: any) {
+    logger.error('DB deletePendingReminder error', { chatId, error: e.message });
+  }
 }
 
 export async function getReminderCount(env: Env, chatId: number | string): Promise<number> {

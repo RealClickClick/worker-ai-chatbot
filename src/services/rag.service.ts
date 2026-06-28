@@ -1,4 +1,6 @@
 import { addDocument, searchDocuments, deleteDocuments, getDocumentCount } from '../repositories/documents.repo.ts';
+import { saveEmbedding, getEmbeddingsByChat, deleteEmbeddingsByChat, cosineSimilarity, parseVector } from '../repositories/embeddings.repo.ts';
+import { generateEmbedding } from '../ai.ts';
 import { RAG_MAX_CHUNK_SIZE, RAG_MAX_RESULTS } from '../constants.ts';
 import type { Env } from '../types/env.d.ts';
 import { logger } from '../utils/logger.ts';
@@ -38,18 +40,41 @@ export function chunkText(text: string, maxChunkSize: number = RAG_MAX_CHUNK_SIZ
 
 export async function indexText(env: Env, chatId: number | string, text: string, source: string = 'text', title: string = ''): Promise<number> {
   const chunks = chunkText(text);
-  for (const chunk of chunks) {
-    await addDocument(env, chatId, chunk, source, title);
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const vector = await generateEmbedding(env, chunk);
+    const docId = await addDocument(env, chatId, chunk, source, title);
+    if (vector.length > 0 && docId) {
+      await saveEmbedding(env, chatId, docId, i, chunk, vector);
+    }
   }
-  logger.info('Text indexed', { chatId, chunks: chunks.length, source, title });
+  logger.info('Text indexed with embeddings', { chatId, chunks: chunks.length, source, title });
   return chunks.length;
 }
 
 export async function getRagContext(env: Env, chatId: number | string, query: string, limit: number = RAG_MAX_RESULTS): Promise<string | null> {
   try {
-    const docs = await searchDocuments(env, chatId, query, limit);
-    if (!docs.length) return null;
-    const formatted = docs.map(d => `[${d.title || 'Knowledge'}] ${d.content}`).join('\n\n');
+    const queryVec = await generateEmbedding(env, query);
+    if (queryVec.length === 0) {
+      const docs = await searchDocuments(env, chatId, query, limit);
+      if (!docs.length) return null;
+      const formatted = docs.map(d => `[${d.title || 'Knowledge'}] ${d.content}`).join('\n\n');
+      return `\n[Retrieved Knowledge:\n${formatted}\n]`;
+    }
+
+    const embeddings = await getEmbeddingsByChat(env, chatId);
+    if (!embeddings.length) return null;
+
+    const scored = embeddings.map(e => ({
+      content: e.content,
+      score: cosineSimilarity(queryVec, parseVector(e.vector)),
+    })).sort((a, b) => b.score - a.score).slice(0, limit);
+
+    const minScore = 0.3;
+    const relevant = scored.filter(s => s.score >= minScore);
+    if (!relevant.length) return null;
+
+    const formatted = relevant.map(r => `[Relevance: ${Math.round(r.score * 100)}%] ${r.content}`).join('\n\n');
     return `\n[Retrieved Knowledge:\n${formatted}\n]`;
   } catch (e: any) {
     logger.error('getRagContext error', { chatId, error: e.message });
@@ -59,6 +84,7 @@ export async function getRagContext(env: Env, chatId: number | string, query: st
 
 export async function clearKnowledge(env: Env, chatId: number | string): Promise<void> {
   await deleteDocuments(env, chatId);
+  await deleteEmbeddingsByChat(env, chatId);
 }
 
 export async function getKnowledgeCount(env: Env, chatId: number | string): Promise<number> {

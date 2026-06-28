@@ -2,11 +2,10 @@ import { sendMessage } from '../telegram.ts';
 import { t } from '../locales.ts';
 import { runChat, cleanAIResponseText } from '../ai.ts';
 import { buildDailyPrompt, getTodayOccasions, getRandomTip, tryFetchExternalHolidays } from '../utils/occasions.ts';
-import { toggleDailyTips, getDailyTipsEnabled, getDailyTipsChats } from '../services/index.ts';
+import { toggleDailyTips, getDailyTipsEnabled, getDailyTipsChats, getSettings } from '../services/index.ts';
 import { TOKEN_LIMIT_SHORT } from '../constants.ts';
 import { logger } from '../utils/logger.ts';
 import type { Env } from '../types/env.d.ts';
-import { getSettings } from '../services/index.ts';
 
 const AI_MODEL_FOR_DAILY = 'fast';
 

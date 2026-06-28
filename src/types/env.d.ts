@@ -8,8 +8,10 @@ export interface Env {
   WEBHOOK_SECRET?: string;
   BOT_NAME?: string;
   BOT_DESCRIPTION?: string;
+  NEWS_API_KEY?: string;
   DB?: D1Database;
   AI: Ai;
+  KV_CACHE?: KVNamespace;
 }
 
 export interface TelegramUser {
@@ -154,6 +156,7 @@ export interface UserSettings {
   ensemble_strategy?: string;
   active_mode?: string | null;
   mode_data?: string | null;
+  tools_enabled?: number;
 }
 
 export interface D1Result<T> {

@@ -2,14 +2,16 @@ import type { Env } from '../types/env.d.ts';
 import type { DocumentRow } from '../types/d1.ts';
 import { logger } from '../utils/logger.ts';
 
-export async function addDocument(env: Env, chatId: number | string, content: string, source: string = 'text', title: string = ''): Promise<void> {
-  if (!env.DB) return;
+export async function addDocument(env: Env, chatId: number | string, content: string, source: string = 'text', title: string = ''): Promise<number | null> {
+  if (!env.DB) return null;
   try {
-    await env.DB.prepare(
+    const result = await env.DB.prepare(
       'INSERT INTO documents (chat_id, source, title, content) VALUES (?, ?, ?, ?)'
     ).bind(String(chatId), source, title, content).run();
+    return result?.meta?.last_row_id ?? null;
   } catch (e: any) {
     logger.error('DB addDocument error', { chatId, error: e.message });
+    return null;
   }
 }
 

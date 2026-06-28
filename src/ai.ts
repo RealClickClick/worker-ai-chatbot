@@ -1,6 +1,6 @@
 import type { Env } from './types/env.d.ts';
 import { PERSONAS, PERSONA_LABELS } from '../config/personas.ts';
-import { t } from './locales.ts';
+import { t, detectLangFromText } from './locales.ts';
 import { TOKEN_LIMIT_BALANCED_BONUS, VISION_MAX_TOKENS, TOKEN_LIMIT_CODE_BOOST } from './constants.ts';
 import { getModelLimits, getTemperature } from './model-config.ts';
 import { retry, AIError } from './utils/error.ts';
@@ -151,7 +151,7 @@ export function extractText(response: any): string | null {
   return null;
 }
 
-async function geminiFetch(env: Env, modelName: string, body: any, maxTokens: number, originalMessages: any[]): Promise<string> {
+async function geminiFetch(env: Env, modelName: string, body: any, maxTokens: number, originalMessages: any[], depth = 0): Promise<string> {
   const apiKey = env.GOOGLE_GEMINI_API_KEY || '';
   if (!apiKey) throw new AIError('GOOGLE_GEMINI_API_KEY not set');
   const res = await fetch(
@@ -170,16 +170,20 @@ async function geminiFetch(env: Env, modelName: string, body: any, maxTokens: nu
   if (text === null || text === undefined) throw new AIError('Empty Gemini response');
 
   if (isTruncatedFinishReason(finishReason)) {
-    logger.warn('Gemini response truncated, retrying with more tokens', { model: modelName, finishReason, maxTokens });
+    if (depth >= MAX_CONTINUATION_DEPTH) {
+      logger.warn('Max Gemini continuation depth reached', { model: modelName, depth });
+      return text || '';
+    }
+    logger.warn('Gemini response truncated, retrying with more tokens', { model: modelName, finishReason, maxTokens, depth });
     const continuationMessages = [...originalMessages, { role: 'assistant', content: text }, { role: 'user', content: 'Continue from where you left off. Do not repeat what you already wrote.' }];
     const newMaxTokens = Math.min(maxTokens * 2, 8192);
-    return text + '\n\n' + await runGoogleGeminiChat(env, continuationMessages, newMaxTokens, modelName);
+    return text + '\n\n' + await runGoogleGeminiChat(env, continuationMessages, newMaxTokens, modelName, depth + 1);
   }
 
   return text;
 }
 
-export async function runGoogleGeminiChat(env: Env, messages: any[], maxTokens: number, modelName: string): Promise<string> {
+export async function runGoogleGeminiChat(env: Env, messages: any[], maxTokens: number, modelName: string, depth = 0): Promise<string> {
   const apiKey = env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey) throw new AIError('GOOGLE_GEMINI_API_KEY not set. Get a free key at https://aistudio.google.com/apikey');
 
@@ -203,11 +207,13 @@ export async function runGoogleGeminiChat(env: Env, messages: any[], maxTokens: 
   if (systemInstruction) body.systemInstruction = systemInstruction;
 
   return retry(async () => {
-    return geminiFetch(env, modelName, body, maxTokens, messages);
+    return geminiFetch(env, modelName, body, maxTokens, messages, depth);
   }, { ctx: `runGoogleGeminiChat:${modelName}` });
 }
 
-export async function runChat(env: Env, messages: any[], maxTokens: number, modelKey = 'fast'): Promise<string> {
+const MAX_CONTINUATION_DEPTH = 3;
+
+export async function runChat(env: Env, messages: any[], maxTokens: number, modelKey = 'fast', depth = 0): Promise<string> {
   const model = getModel(modelKey);
 
   if (model.provider === 'google_direct') {
@@ -238,10 +244,14 @@ export async function runChat(env: Env, messages: any[], maxTokens: number, mode
     if (text === null || text === undefined) throw new AIError('Empty AI response');
 
     if (isTruncatedFinishReason(finishReason)) {
-      logger.warn('AI response truncated, continuing', { model: modelKey, finishReason, maxTokens });
+      if (depth >= MAX_CONTINUATION_DEPTH) {
+        logger.warn('Max continuation depth reached', { model: modelKey, depth });
+        return text || '';
+      }
+      logger.warn('AI response truncated, continuing', { model: modelKey, finishReason, maxTokens, depth });
       const continuationMessages = [...messages, { role: 'assistant', content: text }, { role: 'user', content: 'Continue from where you left off. Do not repeat what you already wrote.' }];
       const newMaxTokens = Math.min(maxTokens * 2, 8192);
-      return text + '\n\n' + await runChat(env, continuationMessages, newMaxTokens, modelKey);
+      return text + '\n\n' + await runChat(env, continuationMessages, newMaxTokens, modelKey, depth + 1);
     }
 
     return text || '';
@@ -252,7 +262,6 @@ export async function* runGoogleGeminiChatStreaming(env: Env, messages: any[], m
   const apiKey = env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey) throw new AIError('GOOGLE_GEMINI_API_KEY not set');
 
-  const MAX_CONTINUATION_DEPTH = 3;
   let continuationDepth = 0;
   let accumulatedText = '';
   let lastFinishReason: string | null = null;
@@ -336,7 +345,6 @@ async function* streamWithContinuation(
   let accumulatedText = '';
   let lastFinishReason: string | null = null;
 
-  const MAX_CONTINUATION_DEPTH = 3;
   let continuationDepth = 0;
 
   while (continuationDepth <= MAX_CONTINUATION_DEPTH) {
@@ -501,11 +509,42 @@ export async function transcribeAudio(env: Env, audioBytes: number[] | Uint8Arra
   }
 }
 
-const TTS_MODEL = '@cf/deepgram/aura-2-en';
+const TTS_MODELS: Record<string, string> = {
+  en: '@cf/deepgram/aura-2-en',
+  es: '@cf/deepgram/aura-2-es',
+  pt: '@cf/deepgram/aura-2-pt',
+  ja: '@cf/deepgram/aura-2-ja',
+};
+
+const TTS_FALLBACK = '@cf/deepgram/aura-2-en';
+
+export function detectTTSScript(text: string): string {
+  const scriptRanges: [RegExp, string][] = [
+    [/[\u0600-\u06FF]/, 'arabic'],
+    [/[\u0400-\u04FF]/, 'cyrillic'],
+    [/[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]/, 'cjk'],
+    [/[\u0980-\u09FF]/, 'bengali'],
+    [/[\u0900-\u097F]/, 'devanagari'],
+  ];
+  for (const [re, script] of scriptRanges) {
+    if (re.test(text)) return script;
+  }
+  return 'latin';
+}
+
+export function selectTTSModel(text: string): string {
+  const lang = detectLangFromText(text);
+  if (lang && TTS_MODELS[lang]) return TTS_MODELS[lang];
+  const script = detectTTSScript(text);
+  if (script === 'arabic') return '@cf/deepgram/aura-2-es';
+  if (script === 'cyrillic') return '@cf/deepgram/aura-2-es';
+  return TTS_FALLBACK;
+}
 
 export async function runTTS(env: Env, text: string): Promise<Uint8Array | null> {
   try {
-    const res = await env.AI.run(TTS_MODEL, { text: text.slice(0, 500), encoding: 'mp3' }) as any;
+    const model = selectTTSModel(text);
+    const res = await env.AI.run(model, { text: text.slice(0, 500), encoding: 'mp3' }) as any;
     if (res instanceof ReadableStream) {
       const chunks: Uint8Array[] = [];
       const reader = res.getReader();
@@ -532,6 +571,21 @@ export async function runTTS(env: Env, text: string): Promise<Uint8Array | null>
   } catch (e: any) {
     logger.error('TTS error', { error: e.message });
     return null;
+  }
+}
+
+const EMBEDDING_MODEL = '@cf/baai/bge-small-en-v1.5';
+
+export async function generateEmbedding(env: Env, text: string): Promise<number[]> {
+  try {
+    const res = await env.AI.run(EMBEDDING_MODEL, { text: [text.slice(0, 512)] }) as any;
+    if (res?.data?.[0]) return res.data[0];
+    if (Array.isArray(res)) return res[0] || [];
+    if (res?.shape && res?.data) return res.data;
+    return [];
+  } catch (e: any) {
+    logger.error('Embedding generation failed', { error: e.message });
+    return [];
   }
 }
 
@@ -573,7 +627,7 @@ export function buildReplyMarkup(lang: string, feedbackEnabled: boolean, transla
 export async function webSearch(env: Env, query: string): Promise<string | null> {
   const apiKey = env.BRAVE_API_KEY;
   if (!apiKey) return null;
-  const cached = getCachedSearch(query);
+  const cached = await getCachedSearch(query);
   if (cached) return cached;
   try {
     const results = await retry(async () => {
@@ -585,7 +639,7 @@ export async function webSearch(env: Env, query: string): Promise<string | null>
       if (!data.web?.results?.length) return null;
       return data.web.results.map((r: any) => `• [${r.title}](${r.url})\n  ${r.description || ''}`).join('\n\n');
     });
-    if (results) setCachedSearch(query, results);
+    if (results) await setCachedSearch(query, results);
     return results;
   } catch (e: any) { return null; }
 }

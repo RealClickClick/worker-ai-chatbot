@@ -1,4 +1,4 @@
-import { answerCallback, editMessage, sendMessage, sendChatAction } from '../telegram.ts';
+import { answerCallback, editMessage, sendMessage, sendChatAction, deleteMessage } from '../telegram.ts';
 import { handleDebateCallback } from './debate.ts';
 import { handleDailyCommand } from './daily.ts';
 import { handleReminderCallback } from './reminder.ts';
@@ -68,6 +68,19 @@ export async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery, 
     await clearChat(env, chatId);
     await answerCallback(callbackQuery.id, env);
     return await editMessage(chatId, messageId, t(lang, 'memory_cleared'), env);
+  }
+
+  if (data === 'confirm_clear') {
+    await clearChat(env, chatId);
+    await answerCallback(callbackQuery.id, env, t(lang, 'cleared'));
+    await editMessage(chatId, messageId, t(lang, 'cleared'), env);
+    return;
+  }
+
+  if (data === 'cancel_clear') {
+    await answerCallback(callbackQuery.id, env, t(lang, 'cancelled'));
+    await editMessage(chatId, messageId, t(lang, 'cancelled'), env);
+    return;
   }
 
   if (data === 'menu_mode') {

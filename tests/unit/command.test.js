@@ -60,11 +60,12 @@ describe('Command Handler', () => {
   });
 
   describe('/clear', () => {
-    it('clears user data and sends confirmation', async () => {
+    it('shows confirmation dialog before clearing', async () => {
       await handleCommand('123', '/clear', '', env, 'en', 'User');
       const calls = fetchSpy.mock.calls;
       const body = JSON.parse(calls.find(c => c[0].includes('sendMessage'))[1].body);
-      expect(body.text).toContain('cleared');
+      expect(body.text).toContain('Are you sure');
+      expect(body.reply_markup.inline_keyboard).toBeDefined();
     });
   });
 

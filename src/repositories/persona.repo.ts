@@ -36,7 +36,7 @@ export async function getPersonaAdaptation(env: Env, chatId: number | string): P
   if (!env.DB) return null;
   try {
     return await env.DB.prepare(
-      'SELECT chat_id, feedback_log, learned_traits, last_adapted, adaptation_count FROM persona_adaptation WHERE chat_id = ?'
+      'SELECT chat_id, feedback_log, learned_traits, last_adapted, adaptation_count, interaction_count FROM persona_adaptation WHERE chat_id = ?'
     ).bind(String(chatId)).first<PersonaAdaptationRow | null>();
   } catch (e: any) {
     logger.error('DB getPersonaAdaptation error', { chatId, error: e.message });
@@ -51,22 +51,27 @@ export async function upsertPersonaAdaptation(env: Env, chatId: number | string,
   const learnedTraits = data.learned_traits !== undefined ? data.learned_traits : (current?.learned_traits ?? null);
   const lastAdapted = data.last_adapted !== undefined ? data.last_adapted : (current?.last_adapted ?? null);
   const adaptationCount = data.adaptation_count ?? current?.adaptation_count ?? 0;
+  const interactionCount = data.interaction_count ?? current?.interaction_count ?? 0;
   try {
     await env.DB.prepare(
-      `INSERT INTO persona_adaptation (chat_id, feedback_log, learned_traits, last_adapted, adaptation_count)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO persona_adaptation (chat_id, feedback_log, learned_traits, last_adapted, adaptation_count, interaction_count)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(chat_id) DO UPDATE SET
          feedback_log = excluded.feedback_log,
          learned_traits = excluded.learned_traits,
          last_adapted = excluded.last_adapted,
-         adaptation_count = excluded.adaptation_count`
-    ).bind(String(chatId), feedbackLog, learnedTraits, lastAdapted, adaptationCount).run();
+         adaptation_count = excluded.adaptation_count,
+         interaction_count = excluded.interaction_count`
+    ).bind(String(chatId), feedbackLog, learnedTraits, lastAdapted, adaptationCount, interactionCount).run();
   } catch (e: any) { logger.error('DB upsertPersonaAdaptation error', { chatId, error: e.message }); }
 }
 
 export async function recordFeedback(env: Env, chatId: number | string, category: string): Promise<boolean> {
   const current = await getPersonaAdaptation(env, chatId);
-  const log: Array<{ category: string; timestamp: string }> = current?.feedback_log ? JSON.parse(current.feedback_log) : [];
+  let log: Array<{ category: string; timestamp: string }> = [];
+  if (current?.feedback_log) {
+    try { log = JSON.parse(current.feedback_log); } catch { log = []; }
+  }
   log.push({ category, timestamp: new Date().toISOString() });
   const shouldAdapt = log.length >= ADAPTATION_THRESHOLD;
   await upsertPersonaAdaptation(env, chatId, {
@@ -87,7 +92,8 @@ export async function getLearnedTraits(env: Env, chatId: number | string): Promi
 
 export async function getFeedbackLog(env: Env, chatId: number | string): Promise<Array<{ category: string; timestamp: string }>> {
   const row = await getPersonaAdaptation(env, chatId);
-  return row?.feedback_log ? JSON.parse(row.feedback_log) : [];
+  if (!row?.feedback_log) return [];
+  try { return JSON.parse(row.feedback_log); } catch { return []; }
 }
 
 export async function clearFeedbackLog(env: Env, chatId: number | string): Promise<void> {

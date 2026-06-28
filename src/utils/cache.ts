@@ -1,4 +1,10 @@
-const stores = new Map();
+const stores = new Map<string, { value: any; expiry: number }>();
+const timers = new Map<string, any>();
+let kvNamespace: any = null;
+
+export function setKVNamespace(kv: any): void {
+  kvNamespace = kv;
+}
 
 function hash(str: string): string {
   let h = 0;
@@ -10,59 +16,93 @@ function hash(str: string): string {
 }
 
 export function createCache(name: string, { ttl = 30000, maxSize = 100 }: { ttl?: number; maxSize?: number } = {}) {
-  if (stores.has(name)) return stores.get(name);
-
-  const store = new Map<string, { value: any; expiry: number }>();
-  const timers = new Map<string, any>();
-
-  function prune() {
-    const now = Date.now();
-    for (const [key, entry] of store) {
-      if (now > entry.expiry) {
-        store.delete(key);
-        timers.delete(key);
-      }
-    }
-    if (store.size > maxSize) {
-      const toDelete = store.size - maxSize;
-      const keys = [...store.keys()].slice(0, toDelete);
-      for (const key of keys) {
-        store.delete(key);
-        timers.delete(key);
-      }
-    }
-  }
+  const kvPrefix = `cache:${name}:`;
 
   const api = {
-    get(key: string) {
-      const entry = store.get(key);
-      if (!entry) return null;
-      if (Date.now() > entry.expiry) {
-        store.delete(key);
-        timers.delete(key);
-        return null;
+    async get(key: string) {
+      const entry = stores.get(key);
+      if (entry) {
+        if (Date.now() > entry.expiry) {
+          stores.delete(key);
+          timers.delete(key);
+        } else {
+          return entry.value;
+        }
       }
-      return entry.value;
+      if (kvNamespace) {
+        try {
+          const kvEntry = await kvNamespace.get(`${kvPrefix}${key}`, 'text');
+          if (kvEntry) {
+            const parsed = JSON.parse(kvEntry);
+            if (parsed.expiry > Date.now()) {
+              stores.set(key, { value: parsed.value, expiry: parsed.expiry });
+              return parsed.value;
+            }
+            await kvNamespace.delete(`${kvPrefix}${key}`).catch(() => {});
+          }
+        } catch {}
+      }
+      return null;
     },
-    set(key: string, value: any, customTtl?: number) {
-      if (store.size >= maxSize) prune();
-      store.set(key, { value, expiry: Date.now() + (customTtl || ttl) });
+    async set(key: string, value: any, customTtl?: number) {
+      const expiryMs = customTtl || ttl;
+      const expiry = Date.now() + expiryMs;
+      if (stores.size >= maxSize) {
+        const keys = [...stores.keys()].slice(0, stores.size - maxSize + 1);
+        for (const k of keys) { stores.delete(k); timers.delete(k); }
+      }
+      stores.set(key, { value, expiry });
+      if (kvNamespace) {
+        try {
+          await kvNamespace.put(`${kvPrefix}${key}`, JSON.stringify({ value, expiry }), {
+            expirationTtl: Math.ceil(expiryMs / 1000),
+          });
+        } catch {}
+      }
     },
-    has(key: string) {
-      return api.get(key) !== null;
+    async has(key: string) {
+      return (await api.get(key)) !== null;
     },
-    delete(key: string) {
-      store.delete(key);
+    async delete(key: string) {
+      stores.delete(key);
       timers.delete(key);
+      if (kvNamespace) {
+        try { await kvNamespace.delete(`${kvPrefix}${key}`).catch(() => {}); } catch {}
+      }
     },
-    clear() {
-      store.clear();
+    async clear() {
+      stores.clear();
       timers.clear();
+      if (kvNamespace) {
+        try {
+          const listed = await kvNamespace.list({ prefix: kvPrefix });
+          for (const key of listed.keys) {
+            await kvNamespace.delete(key.name).catch(() => {});
+          }
+        } catch {}
+      }
     },
-    size() { return store.size; },
+    deleteByPrefix(prefix: string) {
+      for (const key of stores.keys()) {
+        if (key.startsWith(prefix)) {
+          stores.delete(key);
+          timers.delete(key);
+        }
+      }
+      if (kvNamespace) {
+        try {
+          const fullPrefix = `${kvPrefix}${prefix}`;
+          kvNamespace.list({ prefix: fullPrefix }).then((listed: { keys: { name: string }[] }) => {
+            for (const k of listed.keys) {
+              kvNamespace.delete(k.name).catch(() => {});
+            }
+          }).catch(() => {});
+        } catch {}
+      }
+    },
+    size() { return stores.size; },
   };
 
-  stores.set(name, api);
   return api;
 }
 
@@ -72,21 +112,34 @@ export function createCacheKey(...parts: string[]): string {
 
 const responseCache = createCache('ai_responses', { ttl: 60000, maxSize: 50 });
 const searchCache = createCache('web_search', { ttl: 120000, maxSize: 30 });
+const settingsCache = createCache('settings', { ttl: 30000, maxSize: 200 });
 
-export function getCachedResponse(modelKey: string, systemContent: string, messages: any[]): string | null {
+export async function getCachedResponse(modelKey: string, systemContent: string, messages: any[]): Promise<string | null> {
   const key = createCacheKey(modelKey, systemContent, JSON.stringify(messages));
-  return responseCache.get(key);
+  return await responseCache.get(key);
 }
 
-export function setCachedResponse(modelKey: string, systemContent: string, messages: any[], response: string): void {
+export async function setCachedResponse(modelKey: string, systemContent: string, messages: any[], response: string): Promise<void> {
   const key = createCacheKey(modelKey, systemContent, JSON.stringify(messages));
-  responseCache.set(key, response);
+  await responseCache.set(key, response);
 }
 
-export function getCachedSearch(query: string) {
-  return searchCache.get(query.toLowerCase().trim());
+export async function getCachedSearch(query: string): Promise<any> {
+  return await searchCache.get(query.toLowerCase().trim());
 }
 
-export function setCachedSearch(query: string, results: any) {
-  searchCache.set(query.toLowerCase().trim(), results);
+export async function setCachedSearch(query: string, results: any): Promise<void> {
+  await searchCache.set(query.toLowerCase().trim(), results);
+}
+
+export async function getCachedSettings<T>(key: string): Promise<T | null> {
+  return await settingsCache.get(key);
+}
+
+export async function setCachedSettings<T>(key: string, value: T): Promise<void> {
+  await settingsCache.set(key, value, 30000);
+}
+
+export async function clearCachedSettings(key: string): Promise<void> {
+  await settingsCache.delete(key);
 }

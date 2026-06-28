@@ -3,7 +3,8 @@ import { t } from '../locales.ts';
 import {
   createReminder, getReminders, deleteReminder, markReminderSent,
   cancelReminder, rescheduleReminder, getReminderCount, getDueReminders,
-  getSettings, localToUTC, utcToLocal
+  getSettings, localToUTC, utcToLocal,
+  savePendingReminder, getPendingReminder, deletePendingReminder,
 } from '../services/index.ts';
 import {
   buildDateKeyboard, buildTimeKeyboard, buildTimeMinuteKeyboard,
@@ -34,14 +35,36 @@ interface ReminderSession {
   messageId?: number;
 }
 
-const reminderSessions = new Map<string, ReminderSession>();
-
-function sessionKey(chatId: number | string): string {
-  return `rem:${chatId}`;
+async function cleanupSession(chatId: number | string, env: Env): Promise<void> {
+  await deletePendingReminder(env, chatId);
 }
 
-function cleanupSession(chatId: number | string): void {
-  reminderSessions.delete(sessionKey(chatId));
+async function loadOrInitSession(chatId: number | string, env: Env, lang: string): Promise<ReminderSession | null> {
+  const row = await getPendingReminder(env, chatId);
+  if (!row) return null;
+  return {
+    chatId,
+    step: row.step as Step,
+    title: row.title,
+    year: row.year,
+    month: row.month,
+    selectedDate: row.selected_date,
+    selectedHour: row.selected_hour,
+    selectedMinute: row.selected_minute,
+    selectedTime: row.selected_time,
+    recurrence: row.recurrence,
+    lang: row.lang,
+    timezone: row.timezone,
+  };
+}
+
+async function persistSession(chatId: number | string, session: ReminderSession, env: Env): Promise<void> {
+  await savePendingReminder(env, chatId, {
+    step: session.step, title: session.title, year: session.year, month: session.month,
+    selectedDate: session.selectedDate, selectedHour: session.selectedHour,
+    selectedMinute: session.selectedMinute, selectedTime: session.selectedTime,
+    recurrence: session.recurrence, lang: session.lang, timezone: session.timezone,
+  });
 }
 
 export async function handleRemindCommand(chatId: number | string, env: Env, lang: string): Promise<void> {
@@ -67,13 +90,13 @@ export async function handleRemindCommand(chatId: number | string, env: Env, lan
     lang,
     timezone: settings.timezone || 'UTC',
   };
-  reminderSessions.set(sessionKey(chatId), session);
+  await persistSession(chatId, session, env);
 
   await sendMessage(chatId, t(lang, 'reminder_new'), env, 'Markdown');
 }
 
 export async function handleCancelCommand(chatId: number | string, env: Env, lang: string): Promise<void> {
-  cleanupSession(chatId);
+  await cleanupSession(chatId, env);
   await sendMessage(chatId, t(lang, 'reminder_cancelled'), env);
 }
 
@@ -96,12 +119,11 @@ export async function handleRemindersList(chatId: number | string, env: Env, lan
 }
 
 export async function handleReminderMessage(chatId: number | string, text: string, env: Env, lang: string): Promise<boolean> {
-  const key = sessionKey(chatId);
-  const session = reminderSessions.get(key);
+  const session = await loadOrInitSession(chatId, env, lang);
   if (!session) return false;
 
   if (text === '/cancel') {
-    cleanupSession(chatId);
+    await cleanupSession(chatId, env);
     await sendMessage(chatId, t(lang, 'reminder_cancelled'), env);
     return true;
   }
@@ -109,9 +131,9 @@ export async function handleReminderMessage(chatId: number | string, text: strin
   if (session.step === 'title') {
     session.title = text.slice(0, 100);
     session.step = 'date';
-    const now = new Date();
+    await persistSession(chatId, session, env);
     const keyboard = buildDateKeyboard(session.year, session.month, lang, null);
-    const msg = await sendMessage(chatId, t(lang, 'reminder_select_date'), env, 'Markdown', keyboard);
+    await sendMessage(chatId, t(lang, 'reminder_select_date'), env, 'Markdown', keyboard);
     return true;
   }
 
@@ -119,11 +141,10 @@ export async function handleReminderMessage(chatId: number | string, text: strin
 }
 
 export async function handleReminderCallback(data: string, chatId: number | string, messageId: number, env: Env, lang: string): Promise<boolean> {
-  const key = sessionKey(chatId);
-  let session = reminderSessions.get(key);
+  let session = await loadOrInitSession(chatId, env, lang);
 
   if (data === 'rem_cancel') {
-    cleanupSession(chatId);
+    await cleanupSession(chatId, env);
     await editMessage(chatId, messageId, t(lang, 'reminder_cancelled'), env);
     return true;
   }
@@ -165,6 +186,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
       session.month = now.getMonth();
     }
     session.step = 'time';
+    await persistSession(chatId, session, env);
     const keyboard = buildTimeKeyboard(lang);
     await editMessage(chatId, messageId, t(lang, 'reminder_select_time'), env, 'Markdown', keyboard);
     return true;
@@ -181,6 +203,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
       if (!isNaN(y) && !isNaN(m)) {
         session.year = y;
         session.month = m;
+        await persistSession(chatId, session, env);
         const keyboard = buildDateKeyboard(y, m, lang, session.selectedDate);
         await editMessage(chatId, messageId, t(lang, 'reminder_select_date'), env, 'Markdown', keyboard);
       }
@@ -196,6 +219,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
           session.selectedDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           session.year = y;
           session.month = m;
+          await persistSession(chatId, session, env);
           const keyboard = buildDateKeyboard(y, m, lang, session.selectedDate);
           await editMessage(chatId, messageId, t(lang, 'reminder_select_date'), env, 'Markdown', keyboard);
         }
@@ -225,6 +249,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
         }
       }
       session.step = 'recurrence';
+      await persistSession(chatId, session, env);
       const keyboard = buildRecurrenceKeyboard(lang, session.recurrence);
       await editMessage(chatId, messageId, t(lang, 'reminder_select_recurrence'), env, 'Markdown', keyboard);
       return true;
@@ -244,6 +269,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
         session.selectedHour = hour;
         session.selectedMinute = null;
         session.selectedTime = null;
+        await persistSession(chatId, session, env);
         const keyboard = buildTimeMinuteKeyboard(lang, hour, null);
         await editMessage(chatId, messageId, t(lang, 'reminder_select_time'), env, 'Markdown', keyboard);
       }
@@ -255,6 +281,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
       if (/^\d{2}$/.test(minute) && parseInt(minute) < 60) {
         session.selectedMinute = minute;
         session.selectedTime = `${session.selectedHour}:${minute}`;
+        await persistSession(chatId, session, env);
         const keyboard = buildTimeKeyboard(lang, session.selectedHour, minute);
         await editMessage(chatId, messageId, t(lang, 'reminder_select_time'), env, 'Markdown', keyboard);
       }
@@ -286,6 +313,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
     const rec = data.replace('rem_recur_', '');
     if (['none', 'daily', 'weekly', 'monthly'].includes(rec)) {
       session.recurrence = rec;
+      await persistSession(chatId, session, env);
       const keyboard = buildRecurrenceKeyboard(lang, rec);
       await editMessage(chatId, messageId, t(lang, 'reminder_select_recurrence'), env, 'Markdown', keyboard);
     }
@@ -295,6 +323,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
   if (data === 'rem_back_date') {
     if (!session) return false;
     session.step = 'date';
+    await persistSession(chatId, session, env);
     const keyboard = buildDateKeyboard(session.year, session.month, lang, session.selectedDate);
     await editMessage(chatId, messageId, t(lang, 'reminder_select_date'), env, 'Markdown', keyboard);
     return true;
@@ -304,6 +333,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
     if (!session) return false;
     session.selectedMinute = null;
     session.selectedTime = null;
+    await persistSession(chatId, session, env);
     const keyboard = buildTimeKeyboard(lang, session.selectedHour, null);
     await editMessage(chatId, messageId, t(lang, 'reminder_select_time'), env, 'Markdown', keyboard);
     return true;
@@ -315,6 +345,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
     session.selectedHour = null;
     session.selectedMinute = null;
     session.selectedTime = null;
+    await persistSession(chatId, session, env);
     const keyboard = buildTimeKeyboard(lang, null, null);
     await editMessage(chatId, messageId, t(lang, 'reminder_select_time'), env, 'Markdown', keyboard);
     return true;
@@ -337,7 +368,7 @@ export async function handleReminderCallback(data: string, chatId: number | stri
       recurrence: recurrenceLabel,
     });
 
-    cleanupSession(chatId);
+    await cleanupSession(chatId, env);
     await editMessage(chatId, messageId, text, env, 'Markdown');
     return true;
   }

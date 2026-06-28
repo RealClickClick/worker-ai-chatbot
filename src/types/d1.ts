@@ -13,7 +13,7 @@ export interface D1PreparedStatement {
   bind(...params: unknown[]): D1PreparedStatement;
   run(): Promise<D1Result>;
   first<T = D1Row | null>(): Promise<T>;
-  all<T = D1Row[]>(): Promise<D1Result<T extends unknown[] ? T[number] : D1Row>>;
+  all<T extends D1Row = D1Row>(): Promise<D1Result<T>>;
 }
 
 export interface SettingsRow {
@@ -40,6 +40,7 @@ export interface SettingsRow {
   ensemble_strategy: string;
   active_mode: string | null;
   mode_data: string | null;
+  tools_enabled: number;
 }
 
 export interface ChatHistoryRow {
@@ -144,10 +145,41 @@ export interface DocumentRow {
   created_at: string;
 }
 
+export interface PendingReminderRow {
+  chat_id: string;
+  step: string;
+  title: string;
+  year: number;
+  month: number;
+  selected_date: string | null;
+  selected_hour: string | null;
+  selected_minute: string | null;
+  selected_time: string | null;
+  recurrence: string;
+  lang: string;
+  timezone: string;
+  updated_at: string;
+}
+
 export interface PersonaAdaptationRow {
   chat_id: string;
   feedback_log: string;
   learned_traits: string | null;
   last_adapted: string | null;
   adaptation_count: number;
+  interaction_count: number;
+}
+
+export interface WorkflowRow {
+  id: number;
+  chat_id: string;
+  name: string;
+  steps: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowStep {
+  label: string;
+  prompt: string;
 }

@@ -1,5 +1,5 @@
 import type { Env, GroupMessage, TelegramMessage } from './types/env.d.ts';
-import { addGroupMessage, getUserWindow, getMessageByMessageId, getAmbientContext } from './db.ts';
+import { addGroupMessage, getUserWindow, getMessageByMessageId, getAmbientContext } from './services/index.ts';
 import { MAX_REPLY_DEPTH, GROUP_MSG_TRUNCATE, GROUP_USER_WINDOW_SIZE, GROUP_AMBIENT_SIZE } from './constants.ts';
 
 function generateThreadId(): string {

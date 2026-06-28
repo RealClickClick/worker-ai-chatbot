@@ -15,12 +15,15 @@ import {
   setTranslatePending, setTranslateSource, setTranslateTarget,
   getAdaptationContext, getRagContext,
   generateAndStoreSummary, getMemoryContext, shouldSummarize, getOldMessages,
+  recordInteraction,
 } from '../services/index.ts';
+import { getToolDescriptions, parseToolCall, executeToolCall, TOOL_CALL_OPEN, MAX_TOOL_TURNS } from '../tools/index.ts';
 import { buildGroupContext, storeGroupMessageAndGetInfo, storeBotGroupMessage } from '../group-context.ts';
 import { getThinkingEmoji } from '../../config/persona-emojis.ts';
 import { logger } from '../utils/logger.ts';
 import { getCachedResponse, setCachedResponse } from '../utils/cache.ts';
-import { isGroupChat, isBotMentioned, isReplyToBot, isCodeRequest, handlePhoto, handleDocument, handleVoice, handleSticker, handleVideoNote, handleLocation, handleContact, processUrls } from '../utils/media.ts';
+import { isGroupChat, isBotMentioned, isReplyToBot, isCodeRequest } from '../utils/media.ts';
+import { processMedia, processUrlsInMessage, buildMultiModalContext, handleMultiModalOutput } from '../services/media-pipeline.service.ts';
 import { handleDebateMessage } from './debate.ts';
 import { safe } from '../utils/error.ts';
 import { registry } from '../plugins/registry.ts';
@@ -68,8 +71,13 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
     return;
   }
 
-  const message = update.message;
+  const isEdit = !!update.edited_message;
+  const message = update.edited_message || update.message;
   if (!message) return;
+
+  if (isEdit) {
+    logger.info('Edited message received', { chatId: message.chat.id, messageId: message.message_id });
+  }
 
   const chatId = message.chat.id;
 
@@ -146,38 +154,19 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
     }
   }
 
-  let userMessage;
+  let userMessage: string | undefined;
   let contextAdditions = '';
 
+  if (isEdit) {
+    contextAdditions += '\n[User edited their previous message. Respond to the new version.]';
+  }
+
   try {
-    if (message.photo) {
-      const result = await handlePhoto(chatId, message, env, lang);
-      userMessage = result.userMessage;
-      contextAdditions = result.contextAdditions;
-    } else if (message.document) {
-      const result = await handleDocument(chatId, message, env, lang);
-      userMessage = result.userMessage;
-      contextAdditions = result.contextAdditions;
-    } else if (message.voice) {
-      const result = await handleVoice(chatId, message, env, lang);
-      userMessage = result.userMessage;
-      contextAdditions = result.contextAdditions;
-    } else if (message.sticker) {
-      const result = await handleSticker(chatId, message, env, lang);
-      userMessage = result.userMessage;
-      contextAdditions = result.contextAdditions;
-    } else if (message.video_note) {
-      const result = await handleVideoNote(chatId, message, env, lang);
-      userMessage = result.userMessage;
-      contextAdditions = result.contextAdditions;
-    } else if (message.location) {
-      const result = await handleLocation(chatId, message, env, lang);
-      userMessage = result.userMessage;
-      contextAdditions = result.contextAdditions;
-    } else if (message.contact) {
-      const result = await handleContact(chatId, message, env, lang);
-      userMessage = result.userMessage;
-      contextAdditions = result.contextAdditions;
+    const sessionId = settings.active_session || 'default';
+    const pipelineResult = await processMedia(chatId, message, env, lang, sessionId);
+    if (pipelineResult) {
+      userMessage = pipelineResult.userMessage;
+      contextAdditions = pipelineResult.contextAdditions;
     } else if (message.text) {
       userMessage = message.text;
     } else { return; }
@@ -186,12 +175,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
       userMessage = userMessage.slice(0, 10000);
     }
   } catch (e: any) {
-    const errMsg = e.message === 'File too large' ? 'file_too_large' : (message.photo ? 'image_error' : message.document ? 'file_error' : 'voice_error');
-    logger.error('Message processing error', { chatId, type: message.photo ? 'photo' : message.document ? 'document' : 'voice', error: e.message });
+    const errMsg = e.message === 'File too large' ? 'file_too_large' : 'server_error';
+    logger.error('Message processing error', { chatId, error: e.message });
     return await sendMessage(chatId, t(lang, errMsg), env);
   }
 
-  contextAdditions = await processUrls(chatId, userMessage, env, lang, contextAdditions);
+  contextAdditions = await processUrlsInMessage(userMessage || '', chatId, env, lang, contextAdditions);
 
   // --- Translation Mode: translate user message to target language ---
   const translateActive = isTranslationActive(settings, lang);
@@ -219,6 +208,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
     }
   }
 
+  if (!userMessage) return;
+
+  if (env && !isEdit) {
+    recordInteraction(env, chatId, userMessage).catch(() => {});
+  }
+
   if (userMessage.startsWith('/')) {
     const cmd = userMessage.split(' ')[0].toLowerCase();
     const args = userMessage.substring(cmd.length).trim();
@@ -229,6 +224,11 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
   const isIncognito = !settings.memory_enabled;
   let tokenLimit = getTokenLimit(settings.response_length, { modelKey: settings.ai_model });
   let lengthRule = getLengthRule(settings.response_length, lang);
+
+  const multiModalCtx = await buildMultiModalContext(env, chatId, sessionId, lang);
+  if (multiModalCtx) {
+    contextAdditions += `\n${multiModalCtx}`;
+  }
 
   let chatHistory: any[];
   let systemContent = buildSystemContext(settings as UserSettings, userName, lang, lengthRule, isIncognito, contextAdditions, isGroup, env);
@@ -299,6 +299,10 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
     }
   } catch {}
 
+  if (settings.tools_enabled) {
+    systemContent += getToolDescriptions();
+  }
+
   const chatMessages = [
     { role: 'system', content: systemContent }, ...chatHistory
   ];
@@ -312,7 +316,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
     logger.error('Failed to send thinking message', { chatId, error: e.message });
   }
 
-  let responseText = getCachedResponse(activeModelKey, systemContent, chatHistory);
+  let responseText = await getCachedResponse(activeModelKey, systemContent, chatHistory);
   if (!responseText) {
     let accumulatedText = '';
 
@@ -352,8 +356,52 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
 
     if (accumulatedText) {
       responseText = accumulatedText;
-      setCachedResponse(activeModelKey, systemContent, chatHistory, accumulatedText);
-      const trimmed = accumulatedText.trim();
+      // --- Tool-Use: check for tool calls and cycle ---
+      if (settings.tools_enabled) {
+        let toolTurnCount = 0;
+        let toolCall = parseToolCall(accumulatedText);
+        while (toolCall && toolTurnCount < MAX_TOOL_TURNS) {
+          toolTurnCount++;
+          logger.info('Tool call detected', { tool: toolCall.tool, turn: toolTurnCount });
+          const toolMsg = streamMsgId
+            ? `🔧 Using *${toolCall.tool}*...`
+            : `🔧 Using *${toolCall.tool}*...`;
+          if (streamMsgId) {
+            await editMessage(chatId, streamMsgId, toolMsg, env, 'Markdown').catch(() => {});
+          } else {
+            await sendMessage(chatId, toolMsg, env, 'Markdown').catch(() => {});
+          }
+          const toolResult = await executeToolCall(toolCall, env);
+          logger.info('Tool result received', { tool: toolCall.tool, resultLen: toolResult.length });
+          const toolMessages = [
+            { role: 'system', content: systemContent + `\n\n[TOOL RESULT]\nThe user's request was answered using the tool "${toolCall.tool}". The raw result was:\n${toolResult}\n\nNow provide a natural, conversational answer based on this result. Do NOT mention the raw tool output format. Do NOT include [TOOL_RESULT] markers in your final answer.` },
+            ...chatHistory,
+            { role: 'assistant', content: accumulatedText },
+            { role: 'user', content: 'Based on the tool result above, provide a clear and natural response to the user.' },
+          ];
+          accumulatedText = '';
+          try {
+            if (streamMsgId) {
+              await editMessage(chatId, streamMsgId, `🔧 *${toolCall.tool}* result received, generating response...`, env, 'Markdown').catch(() => {});
+            }
+            for await (const chunk of runChatStreaming(env, toolMessages, activeTokenLimit, activeModelKey)) {
+              accumulatedText += chunk;
+              if (streamMsgId) {
+                const display = settings.formatting === 'plain' ? accumulatedText : parseMarkdownToTelegramHTML(accumulatedText);
+                const truncated = display.length > MAX_MESSAGE_LENGTH ? display.slice(0, MAX_MESSAGE_LENGTH - 50) + '\n\n...' : display;
+                await editMessage(chatId, streamMsgId, truncated, env, settings.formatting === 'plain' ? null : 'HTML').catch(() => {});
+              }
+            }
+          } catch (e: any) {
+            logger.error('Tool re-prompt streaming error', { tool: toolCall.tool, error: e.message });
+            accumulatedText = `🔧 *${toolCall.tool}* result:\n${toolResult}`;
+          }
+          responseText = accumulatedText || toolResult;
+          toolCall = parseToolCall(accumulatedText);
+        }
+      }
+      await setCachedResponse(activeModelKey, systemContent, chatHistory, responseText);
+      const trimmed = responseText.trim();
       const expectedChars = estimateCharLimit(activeTokenLimit, activeModelKey);
       const almostFull = trimmed.length >= expectedChars * 0.85;
       const endsNaturally = /[.!?\n\r}\]"'`]/.test(trimmed.charAt(trimmed.length - 1)) || trimmed.length < 100;
@@ -376,7 +424,10 @@ export async function handleTelegramUpdate(update: TelegramUpdate, env: Env): Pr
   }
 
   const cleanTextRaw = cleanAIResponseText(responseText) || t(lang, 'server_error');
-  const cleanText = await registry.dispatchOnAfterResponse(pluginCtx, cleanTextRaw);
+  let cleanText = await registry.dispatchOnAfterResponse(pluginCtx, cleanTextRaw);
+
+  // --- Multi-modal Output: handle [GENERATE_IMAGE] and [GENERATE_SPEECH] markers ---
+  cleanText = await handleMultiModalOutput(env, chatId, cleanText, lang);
 
   // --- Translation Mode: translate AI response back to user's language ---
   let displayText = cleanText;

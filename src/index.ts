@@ -9,13 +9,19 @@ import { logger, resetRequestId } from './utils/logger.ts';
 import { registry } from './plugins/registry.ts';
 import { examplePlugin } from './plugins/builtins/example.ts';
 import { initModes } from './modes/registry.ts';
+import { createCache } from './utils/cache.ts';
+import { initTools } from './tools/index.ts';
+import { initCache } from './repositories/cache.ts';
 
 let dbInitialized = false;
 let pluginsInitialized = false;
+let envValidated = false;
 const workerStartTime = Date.now();
+const processedUpdates = createCache('processed_updates', { ttl: 60000, maxSize: 200 });
 
 registry.register(examplePlugin);
 initModes();
+initTools();
 
 function validateWebhookPayload(body: any): boolean {
   if (!body || typeof body !== 'object') return false;
@@ -24,6 +30,15 @@ function validateWebhookPayload(body: any): boolean {
   if (!body.message) return false;
   if (!body.message.chat?.id) return false;
   return true;
+}
+
+const REQUIRED_ENV_VARS = ['TELEGRAM_BOT_TOKEN', 'WORKER_DOMAIN', 'AI'] as const;
+
+function validateEnv(env: Env): string | null {
+  for (const key of REQUIRED_ENV_VARS) {
+    if (!env[key]) return `Missing required env var: ${key}`;
+  }
+  return null;
 }
 
 function buildErrorResponse(message: string, status = 500): Response {
@@ -66,6 +81,17 @@ export default {
     resetRequestId();
     const url = new URL(request.url);
     const startTime = Date.now();
+
+    if (!envValidated) {
+      const err = validateEnv(env);
+      if (err) {
+        logger.error('Env validation failed', { error: err });
+        return buildErrorResponse(err, 500);
+      }
+      envValidated = true;
+    }
+
+    initCache(env);
 
     if (url.pathname === '/setWebhook') {
       if (env.WEBHOOK_SECRET && !isAdmin(request, env)) return buildErrorResponse('Unauthorized', 403);
@@ -260,6 +286,15 @@ export default {
         if (!validateWebhookPayload(update)) {
           logger.warn('Invalid webhook payload', { hasMessage: !!update?.message, hasCallback: !!update?.callback_query, hasInlineQuery: !!update?.inline_query });
           return new Response('OK');
+        }
+        // Deduplication: skip if this update_id was already processed within 60s
+        if (update.update_id) {
+          const key = String(update.update_id);
+          if (await processedUpdates.get(key)) {
+            logger.info('Duplicate update skipped', { update_id: update.update_id });
+            return new Response('OK');
+          }
+          await processedUpdates.set(key, true);
         }
         ctx.waitUntil(
           handleTelegramUpdate(update, env).catch(err => logger.error('Background Error', { error: err.message }))

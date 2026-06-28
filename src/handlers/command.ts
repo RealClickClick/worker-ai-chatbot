@@ -10,6 +10,7 @@ import {
   toggleMemory, setTranslateSource, setTranslateTarget, setTranslatePending, setTranslateEnabled,
   indexText, clearKnowledge, getKnowledgeCount,
   executeCode, getSupportedLanguages,
+  setToolsEnabled,
 } from '../services/index.ts';
 import { logger } from '../utils/logger.ts';
 import { safe } from '../utils/error.ts';
@@ -18,6 +19,8 @@ import type { PluginContext } from '../plugins/types.ts';
 import { validateImagePrompt, validateSearchQuery, validateInstructions, validateFeedbackMessage } from '../utils/validate.ts';
 import { handleAdmin } from './admin.ts';
 import { handleSession } from './session.ts';
+import { handleAdapt } from './adapt.ts';
+import { handleWorkflow } from './workflow.ts';
 import { handleNewPersona } from './persona.ts';
 import { handleDebateCommand, handleDebateHistory, handleDebateSaveTemplate, handleDebateListTemplates, handleDebateExport } from './debate.ts';
 import { handleDailyCommand } from './daily.ts';
@@ -111,6 +114,24 @@ export async function handleCommand(chatId: number | string, commandText: string
       return;
     }
 
+    case '/mode_quiz': {
+      const qmsg = await activateMode('quiz', env, chatId, 0, '', lang);
+      if (qmsg) await sendMessage(chatId, qmsg, env, 'Markdown');
+      return;
+    }
+
+    case '/mode_teacher': {
+      const tmsg = await activateMode('teacher', env, chatId, 0, '', lang);
+      if (tmsg) await sendMessage(chatId, tmsg, env, 'Markdown');
+      return;
+    }
+
+    case '/mode_brainstorm': {
+      const bmsg = await activateMode('brainstorm', env, chatId, 0, '', lang);
+      if (bmsg) await sendMessage(chatId, bmsg, env, 'Markdown');
+      return;
+    }
+
     case '/mode_stop': {
       if (!settings) settings = await getSettings(env, chatId, userId);
       const activeMode = (settings as any).active_mode;
@@ -121,6 +142,10 @@ export async function handleCommand(chatId: number | string, commandText: string
       const deactMsg = await deactivateMode(env, chatId, 0, '', lang, activeMode);
       if (deactMsg) await sendMessage(chatId, deactMsg, env, 'Markdown');
       return;
+    }
+
+    case '/adapt': {
+      return await handleAdapt(chatId, args, env, lang);
     }
 
     case '/model':
@@ -167,8 +192,12 @@ export async function handleCommand(chatId: number | string, commandText: string
       return await sendMessage(chatId, t(lang, key), env, 'Markdown');
     }
     case '/clear':
-      await clearChat(env, chatId);
-      return await sendMessage(chatId, t(lang, 'cleared'), env);
+      return await sendMessage(chatId, t(lang, 'clear_confirm'), env, 'Markdown', {
+        inline_keyboard: [[
+          { text: t(lang, 'btn_confirm_clear'), callback_data: 'confirm_clear' },
+          { text: t(lang, 'btn_cancel'), callback_data: 'cancel_clear' }
+        ]]
+      });
 
     case '/admin':
       return await handleAdmin(chatId, args, env, lang);
@@ -218,6 +247,23 @@ export async function handleCommand(chatId: number | string, commandText: string
 
     case '/run':
       return await handleRun(chatId, args, env, lang);
+
+    case '/tools': {
+      if (!settings) settings = await getSettings(env, chatId, userId);
+      const wasEnabled = settings.tools_enabled;
+      await setToolsEnabled(env, chatId, wasEnabled ? 0 : 1, userId);
+      const key = wasEnabled ? 'tools_deactivated' : 'tools_activated';
+      await sendMessage(chatId, t(lang, key), env, 'Markdown');
+      const helpText = t(lang, 'tools_usage');
+      if (!wasEnabled) {
+        await sendMessage(chatId, helpText, env, 'Markdown');
+      }
+      return;
+    }
+
+    case '/workflow': {
+      return await handleWorkflow(chatId, args, env, lang);
+    }
 
     default:
       return null;

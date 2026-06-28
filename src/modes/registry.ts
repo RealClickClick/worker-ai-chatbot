@@ -3,6 +3,9 @@ import type { TelegramMessage } from '../types/env.d.ts';
 import { logger } from '../utils/logger.ts';
 import { setActiveMode, setModeData, clearModeState } from '../repositories/settings.repo.ts';
 import { examMode } from './exam.ts';
+import { quizMode } from './quiz.ts';
+import { teacherMode } from './teacher.ts';
+import { brainstormMode } from './brainstorm.ts';
 
 const modes = new Map<string, Mode>();
 
@@ -21,6 +24,9 @@ export function getAllModes(): Mode[] {
 
 export function initModes(): void {
   registerMode(examMode);
+  registerMode(quizMode);
+  registerMode(teacherMode);
+  registerMode(brainstormMode);
 }
 
 /** Dispatches a message to the active mode, persists modeData if changed. Returns null if no mode active. */

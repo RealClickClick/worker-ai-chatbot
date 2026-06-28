@@ -29,14 +29,14 @@ export async function handleInlineQuery(iq: TelegramInlineQuery, env: Env): Prom
     { role: 'user', content: query }
   ];
 
-  let responseText = getCachedResponse(settings.ai_model, systemContent, [{ role: 'user', content: query }]);
+  let responseText = await getCachedResponse(settings.ai_model, systemContent, [{ role: 'user', content: query }]);
   if (!responseText) {
     responseText = await runChat(env, messages, tokenLimit, settings.ai_model).catch((e: any) => {
       logger.error('Inline AI error', { userId, error: e.message });
       return null;
     });
     if (responseText) {
-      setCachedResponse(settings.ai_model, systemContent, [{ role: 'user', content: query }], responseText);
+      await setCachedResponse(settings.ai_model, systemContent, [{ role: 'user', content: query }], responseText);
     }
   }
 

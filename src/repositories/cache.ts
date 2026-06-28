@@ -1,29 +1,48 @@
-const cache = new Map<string, { value: any; gen: number; expiry: number }>();
+import { createCache, setKVNamespace } from '../utils/cache.ts';
+import type { Env } from '../types/env.d.ts';
+
+let dbCache: ReturnType<typeof createCache> | null = null;
+
+export function initCache(env: Env): void {
+  if (env.KV_CACHE) {
+    setKVNamespace(env.KV_CACHE);
+  }
+  dbCache = createCache('db', { ttl: 3000, maxSize: 500 });
+}
+
+export const CACHE_TTL = {
+  settings: 3000,
+  analytics: 120000,
+};
+
+export async function cacheGet<T = unknown>(key: string): Promise<T | null> {
+  if (!dbCache) return null;
+  return await dbCache.get(key) as T | null;
+}
+
+export async function cacheSet<T>(key: string, value: T, ttl: number): Promise<void> {
+  if (!dbCache) return;
+  await dbCache.set(key, value, ttl);
+}
+
+export async function cacheDel(key: string): Promise<void> {
+  if (!dbCache) return;
+  await dbCache.delete(key);
+}
+
+export async function cacheDelByPrefix(prefix: string): Promise<void> {
+  if (!dbCache) return;
+  dbCache.deleteByPrefix(prefix);
+}
+
 let cacheGeneration = 0;
-
-export const CACHE_TTL = { settings: 3000, analytics: 120000 };
-
-export function cacheGet<T = unknown>(key: string): T | null {
-  const entry = cache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiry || entry.gen !== cacheGeneration) { cache.delete(key); return null; }
-  return entry.value as T;
-}
-
-export function cacheSet<T>(key: string, value: T, ttl: number): void {
-  cache.set(key, { value, gen: cacheGeneration, expiry: Date.now() + ttl });
-}
-
-export function cacheDel(key: string): void {
-  cache.delete(key);
-}
 
 export function bumpCacheGen(): void {
   cacheGeneration++;
-  if (cacheGeneration > 1000000) cacheGeneration = 0;
 }
 
-export function clearDBCache(): void {
-  cache.clear();
-  bumpCacheGen();
+export async function clearDBCache(): Promise<void> {
+  if (!dbCache) return;
+  await dbCache.clear();
+  cacheGeneration = 0;
 }

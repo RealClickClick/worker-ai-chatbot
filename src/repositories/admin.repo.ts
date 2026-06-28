@@ -114,7 +114,7 @@ export async function getBlockedUsers(env: Env): Promise<Array<{ chat_id: string
 async function incrementAnalytic(env: Env, key: string): Promise<void> {
   if (!env.DB) return;
   try { await env.DB.prepare('UPDATE analytics SET value = value + 1 WHERE key = ?').bind(key).run(); } catch (e: any) { logger.error('DB increment error', { key, error: e.message }); }
-  cacheDel('analytics');
+  await cacheDel('analytics');
 }
 
 export async function trackMessage(env: Env): Promise<void> { await incrementAnalytic(env, 'total_messages'); }
@@ -127,7 +127,7 @@ export async function trackTiming(env: Env, durationMs: number): Promise<void> {
   try {
     await env.DB.prepare('UPDATE analytics SET value = value + 1 WHERE key = ?').bind('total_response_count').run();
     await env.DB.prepare('UPDATE analytics SET value = value + ? WHERE key = ?').bind(Math.round(durationMs), 'total_response_time_ms').run();
-    cacheDel('analytics');
+    await cacheDel('analytics');
   } catch (e: any) {
     logger.error('DB trackTiming error', { error: e.message });
   }
@@ -135,13 +135,13 @@ export async function trackTiming(env: Env, durationMs: number): Promise<void> {
 
 export async function getAnalytics(env: Env): Promise<Record<string, number>> {
   if (!env.DB) return {};
-  const cached = cacheGet<Record<string, number>>('analytics');
+  const cached = await cacheGet<Record<string, number>>('analytics');
   if (cached) return cached;
   try {
     const rows = await env.DB.prepare('SELECT key, value FROM analytics').all<AnalyticsRow>();
     const result: Record<string, number> = {};
     for (const row of (rows.results || [])) result[row.key] = row.value;
-    cacheSet<Record<string, number>>('analytics', result, CACHE_TTL.analytics);
+    await cacheSet<Record<string, number>>('analytics', result, CACHE_TTL.analytics);
     return result;
   } catch (e: any) { logger.error('DB getAnalytics error', { error: e.message }); return {}; }
 }

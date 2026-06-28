@@ -2,12 +2,12 @@
   <br/>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.1.0-22C55E?style=for-the-badge&labelColor=1a1a2e&color=00d4aa">
-    <img alt="AI Telegram Bot" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.2.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
+    <img alt="AI Telegram Bot" src="https://img.shields.io/badge/🤖_AI_Telegram_Bot-v2.3.0-22C55E?style=for-the-badge&labelColor=f0f0f0&color=00d4aa" height="40">
   </picture>
 
   <br/><br/>
 
-  <p><strong>Serverless • Type-Safe • Multi-Lingual • 68 Personas • RAG • Code Sandbox</strong></p>
+  <p><strong>Serverless • Type-Safe • Multi-Lingual • 68 Personas • RAG • Code Sandbox • Tool-Use • Modes</strong></p>
 
   <p>
     A production-grade Telegram AI assistant running entirely on Cloudflare Workers.<br/>
@@ -166,6 +166,42 @@
   <tr>
     <td align="center">🏷️</td>
     <td><strong>Sticker / Location / Contact</strong><br/><sub>Multi‑modal message type support</sub></td>
+    <td align="center">🔧</td>
+    <td><strong>Tool‑Use (Function Calling)</strong><br/><sub>Weather, calculator, dictionary, crypto, news, timezone</sub></td>
+  </tr>
+  <tr>
+    <td align="center">📋</td>
+    <td><strong>Prompt Chains / Workflows</strong><br/><sub>Multi‑step AI workflows with variable substitution</sub></td>
+    <td align="center">📝</td>
+    <td><strong>Quiz Mode</strong><br/><sub>6‑category quiz with streak tracking & scoring</sub></td>
+  </tr>
+  <tr>
+    <td align="center">👨‍🏫</td>
+    <td><strong>Teacher Mode</strong><br/><sub>3‑level auto‑lessons with exercises & summaries</sub></td>
+    <td align="center">💡</td>
+    <td><strong>Brainstorm Mode</strong><br/><sub>Expand, categorize, evaluate & combine ideas</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🧬</td>
+    <td><strong>Vector RAG</strong><br/><sub>Embedding‑based semantic search with cosine similarity</sub></td>
+    <td align="center">🔊</td>
+    <td><strong>Multi‑Lingual TTS</strong><br/><sub>Language‑aware model selection (EN, PT, ES, JA, FA, AR)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🎨</td>
+    <td><strong>AI Image in Responses</strong><br/><sub>Auto‑generate images from <code>[GENERATE_IMAGE]</code> markers</sub></td>
+    <td align="center">🗣️</td>
+    <td><strong>AI Speech in Responses</strong><br/><sub>Auto‑generate speech from <code>[GENERATE_SPEECH]</code> markers</sub></td>
+  </tr>
+  <tr>
+    <td align="center">✏️</td>
+    <td><strong>Edited Message Support</strong><br/><sub>AI re‑responds when user edits a message</sub></td>
+    <td align="center">⚡</td>
+    <td><strong>KV Cache Layer</strong><br/><sub>Optional KV‑backed 3‑tier caching (KV → memory → DB)</sub></td>
+  </tr>
+  <tr>
+    <td align="center">🔒</td>
+    <td><strong>Message Mutex</strong><br/><sub>D1‑based lock prevents race conditions</sub></td>
     <td align="center"></td>
     <td></td>
   </tr>
@@ -451,6 +487,41 @@
     <td>Send feedback to developer</td>
   </tr>
   <tr>
+    <td><code>/tools</code></td>
+    <td>—</td>
+    <td>Toggle Tool‑Use (weather, calculator, dictionary, crypto, news, timezone)</td>
+  </tr>
+  <tr>
+    <td><code>/workflow</code></td>
+    <td><code>create &lt;n&gt; | &lt;s1&gt; | ...</code> · <code>list</code> · <code>view</code> · <code>run</code> · <code>delete</code></td>
+    <td>Create & run multi‑step prompt chains</td>
+  </tr>
+  <tr>
+    <td><code>/mode_quiz</code></td>
+    <td>—</td>
+    <td>Start quiz mode (6 categories, streak tracking)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_teacher</code></td>
+    <td>—</td>
+    <td>Start teacher mode (3 levels, auto‑lessons)</td>
+  </tr>
+  <tr>
+    <td><code>/mode_brainstorm</code></td>
+    <td>—</td>
+    <td>Start brainstorm mode (idea expand, categorize, evaluate, combine)</td>
+  </tr>
+  <tr>
+    <td><code>/adapt</code></td>
+    <td>—</td>
+    <td>Show adaptive persona profile & traits</td>
+  </tr>
+  <tr>
+    <td><code>/adapt reset</code></td>
+    <td>—</td>
+    <td>Reset adaptive persona learning data</td>
+  </tr>
+  <tr>
     <td><code>/admin</code></td>
     <td><code>stats</code> · <code>broadcast</code> · <code>block</code> · <code>unblock</code> · <code>blocked</code> · <code>cleanup</code></td>
     <td>Admin panel <sub>(restricted)</sub></td>
@@ -713,14 +784,18 @@
 
 <pre>
   ① Telegram → POST /  (verified via secret_token)
-  ② index.ts → parse JSON, validate payload
-   ③ message.ts → classify: text / photo / voice / file / URL / command / sticker / video_note / location / contact
-   ④ db.ts → load user settings (persona, model, session, language, ensemble, routing) + RAG context + memory summary + persona adaptation
-  ⑤ ai.ts → build system prompt + retrieve recent chat history
-  ⑥ Workers AI → run inference (LLM / vision / Whisper / SDXL)
-  ⑦ htmlParser.ts → convert Markdown → Telegram HTML
-  ⑧ telegram.ts → send formatted response + feedback buttons
-  ⑨ db.ts → persist user message + AI response to D1
+  ② index.ts → deduplicate via update_id cache + initCache(env)
+  ③ message.ts → classify: text / photo / voice / file / URL / command / sticker / video_note / location / contact / edited_message
+    ④ media-pipeline → processMedia(): download, save metadata to D1, build context
+  ⑤ load settings (persona, model, session, lang, tools, mode, ensemble, routing) + RAG (vector or LIKE) + memory summary + persona adaptation
+    ⑥ tools_enabled → inject tool descriptions (weather, calc, crypto, etc.)
+  ⑦ ai.ts → build system prompt + retrieve recent chat history
+  ⑧ Workers AI → run inference with optional tool re‑prompt loop (up to 5 turns)
+  ⑨ post‑process: [GENERATE_IMAGE] → SDXL · [GENERATE_SPEECH] → TTS · [TOOL_CALL] → execute tool
+   ⑩ htmlParser.ts → convert Markdown → Telegram HTML
+   ⑪ telegram.ts → send formatted response + feedback buttons
+   ⑫ persist user message + AI response to D1
+   ⑬ recordInteraction() → adaptive persona trait analysis (every 15 messages)
 </pre>
 
 <h3>Tech Stack</h3>
@@ -939,9 +1014,14 @@ buildGroupContext(chatId, userId, message)
     <td align="center">—</td>
     <td>Google AI Studio API key for Gemini models (<a href="https://aistudio.google.com/apikey">get one</a>)</td>
   </tr>
+  <tr>
+    <td><code>NEWS_API_KEY</code></td>
+    <td align="center">—</td>
+    <td>API key for news tool from <a href="https://newsapi.org/">NewsAPI</a></td>
+  </tr>
 </table>
 
-<p>A D1 binding named <code>DB</code> and a Workers AI binding named <code>AI</code> are required. The database schema (12 tables) is auto‑created on first <code>/init</code> via the built‑in migration system (v1–v15).</p>
+<p>A D1 binding named <code>DB</code> and a Workers AI binding named <code>AI</code> are required. Optionally, a KV namespace binding named <code>KV_CACHE</code> enables persistent cross‑isolate caching. The database schema (16+ tables) is auto‑created on first <code>/init</code> via the built‑in migration system (v1–v28).</p>
 
 ---
 
@@ -1011,11 +1091,11 @@ buildGroupContext(chatId, userId, message)
 ├── <b>db.ts</b>                 #  Backward-compat re-exports (legacy)
 ├── <b>locales.ts</b>            #  i18n — 5 languages, template interpolation
 ├── <b>locales/</b>              #  Split locale data per language
-│   ├── <b>en.ts</b>              #  English (317 keys)
-│   ├── <b>fa.ts</b>              #  فارسی (316 keys)
-│   ├── <b>ar.ts</b>              #  العربية (291 keys)
-│   ├── <b>tr.ts</b>              #  Türkçe (291 keys)
-│   └── <b>ru.ts</b>              #  Русский (300 keys)
+│   ├── <b>en.ts</b>              #  English (355+ keys)
+│   ├── <b>fa.ts</b>              #  فارسی (354+ keys)
+│   ├── <b>ar.ts</b>              #  العربية (345+ keys)
+│   ├── <b>tr.ts</b>              #  Türkçe (345+ keys)
+│   └── <b>ru.ts</b>              #  Русский (345+ keys)
 ├── <b>telegram.ts</b>           #  Telegram API client — retry, chunking, uploads
 ├── <b>constants.ts</b>          #  Shared constants (rate limits, RAG, Piston, etc.)
 ├── <b>model-config.ts</b>       #  Model registry, capabilities, cost config
@@ -1032,7 +1112,9 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>daily.ts</b>          #  Daily tips cron handler
 │   ├── <b>reminder.ts</b>       #  Reminder wizard + cron processing
 │   ├── <b>debate.ts</b>         #  Multi-agent debate wizard
-│   └── <b>inline.ts</b>         #  Inline query handler
+│   ├── <b>inline.ts</b>         #  Inline query handler
+│   ├── <b>adapt.ts</b>          #  /adapt & /adapt reset commands
+│   └── <b>workflow.ts</b>       #  /workflow command (create/list/view/run/delete)
 ├── <b>menus/</b>
 │   ├── <b>modeMenu.ts</b>       #  Dynamic persona/model/language/keyboard menus
 │   ├── <b>debateMenu.ts</b>     #  Debate flow keyboard menus
@@ -1040,19 +1122,25 @@ buildGroupContext(chatId, userId, message)
 ├── <b>modes/</b>
 │   ├── <b>types.ts</b>          #  Mode system type definitions
 │   ├── <b>registry.ts</b>       #  Mode registry & Lookup
-│   └── <b>exam.ts</b>           #  Exam mode implementation
+│   ├── <b>exam.ts</b>           #  Exam mode implementation
+│   ├── <b>quiz.ts</b>           #  Quiz mode (6 categories, streak tracking)
+│   ├── <b>teacher.ts</b>        #  Teacher mode (3 levels, auto‑lessons)
+│   └── <b>brainstorm.ts</b>     #  Brainstorm mode (expand/categorize/evaluate/combine)
 ├── <b>parsers/</b>
 │   └── <b>htmlParser.ts</b>     #  Markdown → Telegram HTML converter
 ├── <b>repositories/</b>
-│   ├── <b>settings.repo.ts</b>  #  User settings + migrations (v1–v21)
+│   ├── <b>settings.repo.ts</b>  #  User settings + migrations (v1–v28)
 │   ├── <b>chat.repo.ts</b>      #  Chat history + group messages
 │   ├── <b>admin.repo.ts</b>     #  Rate limiting, blocks, analytics, timing
-│   ├── <b>cache.ts</b>          #  In-memory TTL cache
+│   ├── <b>cache.ts</b>          #  DB cache layer (KV-backed TTL cache)
 │   ├── <b>persona.repo.ts</b>   #  Custom personas + adaptation feedback
 │   ├── <b>debate.repo.ts</b>    #  Debate sessions + messages
 │   ├── <b>reminder.repo.ts</b>  #  Reminders CRUD
 │   ├── <b>documents.repo.ts</b> #  RAG document storage & search
-│   └── <b>memory.repo.ts</b>    #  Memory summaries storage
+│   ├── <b>memory.repo.ts</b>    #  Memory summaries storage
+│   ├── <b>media.repo.ts</b>     #  Media metadata (photos, docs, voice, etc.)
+│   ├── <b>embeddings.repo.ts</b> #  Vector embeddings for RAG
+│   └── <b>workflow.repo.ts</b>  #  Workflow CRUD
 ├── <b>services/</b>
 │   ├── <b>index.ts</b>          #  Centralized service-layer re-exports
 │   ├── <b>settings.service.ts</b>  #  User settings business logic
@@ -1062,14 +1150,30 @@ buildGroupContext(chatId, userId, message)
 │   ├── <b>router.service.ts</b>  #  Message classifier → model routing
 │   ├── <b>rag.service.ts</b>     #  Text chunking, indexing, retrieval
 │   ├── <b>sandbox.service.ts</b> #  Piston API code execution (20 languages)
-│   └── <b>memory.service.ts</b>  #  AI summarization & context recall
+│   ├── <b>memory.service.ts</b>  #  AI summarization & context recall
+│   ├── <b>media-pipeline.service.ts</b>  #  Multi-modal media processing & output
+│   └── <b>workflow.service.ts</b>  #  Workflow execution engine
 └── <b>utils/</b>
     ├── <b>logger.ts</b>         #  Structured JSON logging with request IDs
+    ├── <b>mutex.ts</b>          #  D1‑based mutex for race condition prevention
+    ├── <b>cache.ts</b>          #  3‑tier KV cache (KV → in‑memory → DB), response/search/response caches
     ├── <b>error.ts</b>          #  AppError hierarchy, safe/retry wrappers
     ├── <b>file.ts</b>           #  Telegram file download, PDF text extraction
     ├── <b>media.ts</b>          #  Photo/document/voice/sticker/video_note/location/contact handlers
     ├── <b>validate.ts</b>       #  Input validation helpers
     └── <b>occasions.ts</b>      #  Holiday/occasion calendar for daily tips
+
+<b>tools/</b>
+├── <b>types.ts</b>              #  ToolDefinition & ToolCall types, [TOOL_CALL] markers
+├── <b>registry.ts</b>           #  Tool registration, parsing, execution
+├── <b>index.ts</b>              #  Tool initialization & re‑exports
+└── <b>builtins/</b>
+    ├── <b>weather.ts</b>        #  Weather tool (Open‑Meteo, no API key needed)
+    ├── <b>calculator.ts</b>     #  Math calculator tool
+    ├── <b>time.ts</b>           #  Timezone / world clock tool
+    ├── <b>define.ts</b>         #  Dictionary tool
+    ├── <b>crypto.ts</b>         #  Cryptocurrency price tool
+    └── <b>news.ts</b>           #  News headlines tool (NEWS_API_KEY)
 
 <b>config/</b>
 ├── <b>personas.ts</b>           #  68 persona definitions (5 languages each)
@@ -1213,6 +1317,46 @@ curl http://localhost:8787/setWebhook
   <tr>
     <td>14</td>
     <td>Performance — instrumentation around streaming + input hardening</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>15</td>
+    <td>Tool‑Use (Function Calling) — weather, calculator, dictionary, crypto, news, timezone with ReAct loop</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>16</td>
+    <td>Multi‑modal Pipeline — media metadata storage, [GENERATE_IMAGE] & [GENERATE_SPEECH] output, edited_message support</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>17</td>
+    <td>Prompt Chains / Workflows — create/list/view/run/delete with variable substitution</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>18</td>
+    <td>Modes — Quiz (6 categories), Teacher (3 levels), Brainstorm (expand/categorize/evaluate/combine)</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>19</td>
+    <td>Adaptive Persona v2 — 5‑trait structured analysis, `/adapt` profile visualization</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>20</td>
+    <td>Vector RAG — embedding‑based semantic search with cosine similarity scoring</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>21</td>
+    <td>KV Cache Layer — 3‑tier caching (KV → in‑memory → DB), optional KV_CACHE binding</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td>22</td>
+    <td>Message Mutex — D1‑based lock prevents concurrent processing race conditions</td>
     <td align="center">✅</td>
   </tr>
 </table>
